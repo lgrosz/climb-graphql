@@ -16,13 +16,6 @@ pub struct Grade {
 }
 
 #[derive(SimpleObject, InputObject)]
-#[graphql(input_name = "KVPairInput")]
-pub struct KVPair {
-    pub key: String,
-    pub value: String,
-}
-
-#[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "CoordinateInput")]
 pub struct Coordinate {
     pub latitude: f64,
@@ -66,10 +59,6 @@ impl Climb {
 
     async fn names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
         vec![]
-    }
-
-    async fn descriptions<'a>(&self, _ctx: &Context<'a>) -> Option<Vec<KVPair>> {
-        None
     }
 
     async fn grades<'a>(&self, _ctx: &Context<'a>) -> Option<Vec<Grade>> {
@@ -283,10 +272,6 @@ impl MutationRoot {
             desc = "Names to associate with the climb"
         )]
         _names: Option<Vec<String>>,
-        #[graphql(
-            desc = "Descriptions to associate with the climb"
-        )]
-        _descriptions: Option<Vec<KVPair>>,
         #[graphql(
             desc = "Grades to associate with the climb"
         )]
