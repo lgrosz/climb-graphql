@@ -1,4 +1,5 @@
 use async_graphql::{Context, FieldResult, Error, InputObject, Object, SimpleObject, Enum};
+use deadpool_postgres::Pool;
 
 pub struct Area(i32);
 
@@ -57,8 +58,14 @@ impl Climb {
         &self.0
     }
 
-    async fn names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
-        vec![]
+    async fn name<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<String>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query_one("SELECT name FROM climbs WHERE id = $1", &[&self.0]).await?;
+        let value: Option<&str> = result.try_get(0)?;
+
+        Ok(value.map(|name| name.to_string()))
     }
 
     async fn grades<'a>(&self, _ctx: &Context<'a>) -> Option<Vec<Grade>> {
@@ -150,13 +157,19 @@ impl QueryRoot {
 
     async fn climb<'a>(
         &self,
-        _ctx: &Context<'a>,
+        ctx: &Context<'a>,
         #[graphql(
             desc = "Returns climb with given id"
         )]
-        _id: i32,
+        id: i32,
     ) -> FieldResult<Climb> {
-        Err(Error::new("Not implemented"))
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        // Just check for existence
+        client.query_one("SELECT 1 FROM climbs WHERE id = $1", &[&id]).await?;
+
+        Ok(Climb(id))
     }
 
     async fn formations<'a>(
