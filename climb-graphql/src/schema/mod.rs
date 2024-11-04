@@ -1,4 +1,4 @@
-use async_graphql::{Context, Error, Object, Result};
+use async_graphql::{Context, Object, Result};
 use deadpool_postgres::Pool;
 
 use area::Area;
@@ -18,7 +18,7 @@ impl QueryRoot {
         _ctx: &Context<'a>,
         #[graphql(desc = "Parent area id")] _area_id: Option<i32>,
     ) -> Result<Vec<Area>> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn area<'a>(
@@ -43,7 +43,7 @@ impl QueryRoot {
         #[graphql(desc = "Parent area id")] _area_id: Option<i32>,
         #[graphql(desc = "Parent formation id")] _formation_id: Option<i32>,
     ) -> Result<Vec<Climb>> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn climb<'a>(
@@ -68,7 +68,7 @@ impl QueryRoot {
         #[graphql(desc = "Parent area id")] _area_id: Option<i32>,
         #[graphql(desc = "Parent formation id")] _formation_id: Option<i32>,
     ) -> Result<Vec<Formation>> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn formation<'a>(
@@ -98,7 +98,7 @@ impl MutationRoot {
         _names: Option<Vec<String>>,
         _super_area_id: Option<i32>,
     ) -> Result<Area> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn add_area_name<'a>(
@@ -107,7 +107,7 @@ impl MutationRoot {
         #[graphql(desc = "Area id to add name to")] _id: i32,
         #[graphql(desc = "Name which to add")] _name: String,
     ) -> Result<Area> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn remove_area_name<'a>(
@@ -116,7 +116,7 @@ impl MutationRoot {
         #[graphql(desc = "Area id to remove name from")] _id: i32,
         #[graphql(desc = "Name which to remove")] _name: String,
     ) -> Result<Area> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn set_super_area<'a>(
@@ -125,14 +125,14 @@ impl MutationRoot {
         #[graphql(desc = "Area id to set 'super area' of")] _id: i32,
         #[graphql(desc = "Super area id")] _super_area_id: i32,
     ) -> Result<Area> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
     async fn clear_super_area<'a>(
         &self,
         _ctx: &Context<'a>,
         #[graphql(desc = "Area id to clear 'super area' of")] _id: i32,
     ) -> Result<Area> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn remove_area<'a>(
@@ -140,7 +140,7 @@ impl MutationRoot {
         _ctx: &Context<'a>,
         #[graphql(desc = "Removes area with given id")] _id: i32,
     ) -> Result<Area> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn add_climb<'a>(
@@ -151,7 +151,7 @@ impl MutationRoot {
         #[graphql(desc = "Parent area id of the climb")] _area_id: Option<i32>,
         #[graphql(desc = "Parent formation id of the climb")] _formation_id: Option<i32>,
     ) -> Result<Climb> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn add_climb_name<'a>(
@@ -160,7 +160,7 @@ impl MutationRoot {
         #[graphql(desc = "Climb id to add name to")] _id: i32,
         #[graphql(desc = "Name which to add")] _name: String,
     ) -> Result<Climb> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn remove_climb_name<'a>(
@@ -169,7 +169,7 @@ impl MutationRoot {
         #[graphql(desc = "Climb id to remove name from")] _id: i32,
         #[graphql(desc = "Name which to remove")] _name: String,
     ) -> Result<Climb> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn add_climb_grade<'a>(
@@ -178,7 +178,7 @@ impl MutationRoot {
         #[graphql(desc = "Climb id to add grade to")] _id: i32,
         #[graphql(desc = "Grade which to add")] _grade: Grade,
     ) -> Result<Climb> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn remove_climb_grade<'a>(
@@ -187,7 +187,7 @@ impl MutationRoot {
         #[graphql(desc = "Climb id to remove grade from")] _id: i32,
         #[graphql(desc = "Grade to remove")] _grade: Grade,
     ) -> Result<Climb> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn remove_climb<'a>(
@@ -195,7 +195,7 @@ impl MutationRoot {
         _ctx: &Context<'a>,
         #[graphql(desc = "Removes climb with given id")] _id: i32,
     ) -> Result<Climb> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn add_formation<'a>(
@@ -206,7 +206,7 @@ impl MutationRoot {
         _super_formation_id: Option<i32>,
         _location: Option<Coordinate>,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn add_formation_name<'a>(
@@ -215,7 +215,7 @@ impl MutationRoot {
         #[graphql(desc = "Formation id to add name to")] _id: i32,
         #[graphql(desc = "Name which to add")] _name: String,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn remove_formation_name<'a>(
@@ -224,7 +224,7 @@ impl MutationRoot {
         #[graphql(desc = "Formation id to remove name from")] _id: i32,
         #[graphql(desc = "Name which to remove")] _name: String,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn set_formation_location<'a>(
@@ -233,7 +233,7 @@ impl MutationRoot {
         #[graphql(desc = "Formation id to set location of")] _id: i32,
         #[graphql(desc = "Location of the formation")] _location: Coordinate,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn clear_formation_location<'a>(
@@ -241,7 +241,7 @@ impl MutationRoot {
         _ctx: &Context<'a>,
         #[graphql(desc = "Formation id to set location of")] _id: i32,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn set_formation_area<'a>(
@@ -250,7 +250,7 @@ impl MutationRoot {
         #[graphql(desc = "Formation id to area of")] _id: i32,
         #[graphql(desc = "Area id")] _area_id: i32,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn set_formation_super_formation<'a>(
@@ -259,7 +259,7 @@ impl MutationRoot {
         #[graphql(desc = "Formation id to super-formation of")] _id: i32,
         #[graphql(desc = "Super formation id")] _super_formation_id: i32,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn clear_formation_area<'a>(
@@ -267,7 +267,7 @@ impl MutationRoot {
         _ctx: &Context<'a>,
         #[graphql(desc = "Formation id to area of")] _id: i32,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     // TODO This same thing as `clear_formation_area`. Is there a common name I can use to avoid
@@ -277,7 +277,7 @@ impl MutationRoot {
         _ctx: &Context<'a>,
         #[graphql(desc = "Formation id to super-formation of")] _id: i32,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 
     async fn remove_formation<'a>(
@@ -285,6 +285,6 @@ impl MutationRoot {
         _ctx: &Context<'a>,
         #[graphql(desc = "Removes formation with given id")] _id: i32,
     ) -> Result<Formation> {
-        Err(Error::new("Not implemented"))
+        todo!()
     }
 }
