@@ -39,7 +39,7 @@ impl Area {
         Ok(value.map(|name| name.to_string()))
     }
 
-    async fn super_area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
+    async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -115,7 +115,7 @@ impl Climb {
         None
     }
 
-    async fn super_area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
+    async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -129,7 +129,7 @@ impl Climb {
         Ok(value.map(Area))
     }
 
-    async fn super_formation<'a>(&self, ctx: &Context<'a>) -> Result<Option<Formation>> {
+    async fn formation<'a>(&self, ctx: &Context<'a>) -> Result<Option<Formation>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -166,7 +166,7 @@ impl Formation {
         None
     }
 
-    async fn super_area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
+    async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -180,7 +180,7 @@ impl Formation {
         Ok(value.map(Area))
     }
 
-    async fn super_formation<'a>(&self, ctx: &Context<'a>) -> Result<Option<Formation>> {
+    async fn formation<'a>(&self, ctx: &Context<'a>) -> Result<Option<Formation>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
