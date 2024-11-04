@@ -29,8 +29,14 @@ impl Area {
         &self.0
     }
 
-    async fn names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
-        vec![]
+    async fn name<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<String>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query_one("SELECT name FROM areas WHERE id = $1", &[&self.0]).await?;
+        let value: Option<&str> = result.try_get(0)?;
+
+        Ok(value.map(|name| name.to_string()))
     }
 
     async fn super_area<'a>(&self, _ctx: &Context<'a>) -> Option<Area> {
@@ -131,13 +137,19 @@ impl QueryRoot {
 
     async fn area<'a>(
         &self,
-        _ctx: &Context<'a>,
+        ctx: &Context<'a>,
         #[graphql(
-            desc = "Returns the area with the given id"
+            desc = "Area id"
         )]
-        _id: i32,
+        id: i32,
     ) -> FieldResult<Area> {
-        Err(Error::new("Not implemented"))
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        // Just check for existence
+        client.query_one("SELECT 1 FROM areas WHERE id = $1", &[&id]).await?;
+
+        Ok(Area(id))
     }
 
     async fn climbs<'a>(
