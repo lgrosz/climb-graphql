@@ -39,8 +39,18 @@ impl Area {
         Ok(value.map(|name| name.to_string()))
     }
 
-    async fn super_area<'a>(&self, _ctx: &Context<'a>) -> Option<Area> {
-        None
+    async fn super_area<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Area>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT super_area_id FROM area_closures WHERE area_id = $1", &[&self.0]).await?;
+        let value: Option<i32> = if let Some(row) = result.first() {
+            row.try_get(0)?
+        } else {
+            None
+        };
+
+        Ok(value.map(Area))
     }
 
     async fn sub_areas<'a>(&self, _ctx: &Context<'a>) -> Vec<Area> {
@@ -78,12 +88,32 @@ impl Climb {
         None
     }
 
-    async fn area<'a>(&self, _ctx: &Context<'a>) -> Option<Area> {
-        None
+    async fn super_area<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Area>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT super_area_id FROM climb_super_area_closures WHERE climb_id = $1", &[&self.0]).await?;
+        let value: Option<i32> = if let Some(row) = result.first() {
+            row.try_get(0)?
+        } else {
+            None
+        };
+
+        Ok(value.map(Area))
     }
 
-    async fn formation<'a>(&self, _ctx: &Context<'a>) -> Option<Formation> {
-        None
+    async fn super_formation<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Formation>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT super_formation_id FROM climb_super_formation_closures WHERE climb_id = $1", &[&self.0]).await?;
+        let value: Option<i32> = if let Some(row) = result.first() {
+            row.try_get(0)?
+        } else {
+            None
+        };
+
+        Ok(value.map(Formation))
     }
 }
 
@@ -109,12 +139,32 @@ impl Formation {
         None
     }
 
-    async fn area<'a>(&self, _ctx: &Context<'a>) -> Option<Area> {
-        None
+    async fn super_area<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Area>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT super_area_id FROM formation_super_area_closures WHERE formation_id = $1", &[&self.0]).await?;
+        let value: Option<i32> = if let Some(row) = result.first() {
+            row.try_get(0)?
+        } else {
+            None
+        };
+
+        Ok(value.map(Area))
     }
 
-    async fn super_formation<'a>(&self, _ctx: &Context<'a>) -> Option<Formation> {
-        None
+    async fn super_formation<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Formation>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT super_formation_id FROM formation_super_formation_closures WHERE formation_id = $1", &[&self.0]).await?;
+        let value: Option<i32> = if let Some(row) = result.first() {
+            row.try_get(0)?
+        } else {
+            None
+        };
+
+        Ok(value.map(Formation))
     }
 
     async fn sub_formations<'a>(&self, _ctx: &Context<'a>) -> Vec<Formation> {
