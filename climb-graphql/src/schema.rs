@@ -1,4 +1,4 @@
-use async_graphql::{Context, FieldResult, Error, InputObject, Object, SimpleObject, Enum};
+use async_graphql::{Context, Result, Error, InputObject, Object, SimpleObject, Enum};
 use deadpool_postgres::Pool;
 
 pub struct Area(i32);
@@ -29,7 +29,7 @@ impl Area {
         &self.0
     }
 
-    async fn name<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<String>> {
+    async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -39,7 +39,7 @@ impl Area {
         Ok(value.map(|name| name.to_string()))
     }
 
-    async fn super_area<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Area>> {
+    async fn super_area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -53,7 +53,7 @@ impl Area {
         Ok(value.map(Area))
     }
 
-    async fn areas<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Area>> {
+    async fn areas<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Area>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -66,7 +66,7 @@ impl Area {
         Ok(areas)
     }
 
-    async fn formations<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Formation>> {
+    async fn formations<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Formation>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -79,7 +79,7 @@ impl Area {
         Ok(formations)
     }
 
-    async fn climbs<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Climb>> {
+    async fn climbs<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Climb>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -101,7 +101,7 @@ impl Climb {
         &self.0
     }
 
-    async fn name<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<String>> {
+    async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -115,7 +115,7 @@ impl Climb {
         None
     }
 
-    async fn super_area<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Area>> {
+    async fn super_area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -129,7 +129,7 @@ impl Climb {
         Ok(value.map(Area))
     }
 
-    async fn super_formation<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Formation>> {
+    async fn super_formation<'a>(&self, ctx: &Context<'a>) -> Result<Option<Formation>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -152,7 +152,7 @@ impl Formation {
         &self.0
     }
 
-    async fn name<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<String>> {
+    async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -166,7 +166,7 @@ impl Formation {
         None
     }
 
-    async fn super_area<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Area>> {
+    async fn super_area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -180,7 +180,7 @@ impl Formation {
         Ok(value.map(Area))
     }
 
-    async fn super_formation<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<Formation>> {
+    async fn super_formation<'a>(&self, ctx: &Context<'a>) -> Result<Option<Formation>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -194,7 +194,7 @@ impl Formation {
         Ok(value.map(Formation))
     }
 
-    async fn formations<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Formation>> {
+    async fn formations<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Formation>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -207,7 +207,7 @@ impl Formation {
         Ok(formations)
     }
 
-    async fn climbs<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Climb>> {
+    async fn climbs<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Climb>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -232,7 +232,7 @@ impl QueryRoot {
             desc = "Parent area id"
         )]
         _area_id: Option<i32>,
-    ) -> FieldResult<Vec<Area>> {
+    ) -> Result<Vec<Area>> {
         Err(Error::new("Not implemented"))
     }
 
@@ -243,7 +243,7 @@ impl QueryRoot {
             desc = "Area id"
         )]
         id: i32,
-    ) -> FieldResult<Area> {
+    ) -> Result<Area> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -264,7 +264,7 @@ impl QueryRoot {
             desc = "Parent formation id"
         )]
         _formation_id: Option<i32>
-    ) -> FieldResult<Vec<Climb>> {
+    ) -> Result<Vec<Climb>> {
         Err(Error::new("Not implemented"))
     }
 
@@ -272,10 +272,10 @@ impl QueryRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(
-            desc = "Returns climb with given id"
+            desc = "Climb id"
         )]
         id: i32,
-    ) -> FieldResult<Climb> {
+    ) -> Result<Climb> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -296,7 +296,7 @@ impl QueryRoot {
             desc = "Parent formation id"
         )]
         _formation_id: Option<i32>
-    ) -> FieldResult<Vec<Formation>> {
+    ) -> Result<Vec<Formation>> {
         Err(Error::new("Not implemented"))
     }
 
@@ -307,7 +307,7 @@ impl QueryRoot {
             desc = "Formation id"
         )]
         id: i32,
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
@@ -327,7 +327,7 @@ impl MutationRoot {
         _ctx: &Context<'a>,
         _names: Option<Vec<String>>,
         _super_area_id: Option<i32>,
-    ) -> FieldResult<Area> {
+    ) -> Result<Area> {
         Err(Error::new("Not implemented"))
     }
 
@@ -342,7 +342,7 @@ impl MutationRoot {
             desc = "Name which to add"
         )]
         _name: String
-    ) -> FieldResult<Area> {
+    ) -> Result<Area> {
         Err(Error::new("Not implemented"))
     }
 
@@ -357,7 +357,7 @@ impl MutationRoot {
             desc = "Name which to remove"
         )]
         _name: String
-    ) -> FieldResult<Area> {
+    ) -> Result<Area> {
         Err(Error::new("Not implemented"))
     }
 
@@ -372,7 +372,7 @@ impl MutationRoot {
             desc = "Super area id"
         )]
         _super_area_id: i32
-    ) -> FieldResult<Area> {
+    ) -> Result<Area> {
         Err(Error::new("Not implemented"))
     }
     async fn clear_super_area<'a>(
@@ -382,7 +382,7 @@ impl MutationRoot {
             desc = "Area id to clear 'super area' of"
         )]
         _id: i32,
-    ) -> FieldResult<Area> {
+    ) -> Result<Area> {
         Err(Error::new("Not implemented"))
     }
 
@@ -393,7 +393,7 @@ impl MutationRoot {
             desc = "Removes area with given id"
         )]
         _id: i32,
-    ) -> FieldResult<Area> {
+    ) -> Result<Area> {
         Err(Error::new("Not implemented"))
     }
 
@@ -416,7 +416,7 @@ impl MutationRoot {
             desc = "Parent formation id of the climb"
         )]
         _formation_id: Option<i32>,
-    ) -> FieldResult<Climb> {
+    ) -> Result<Climb> {
         Err(Error::new("Not implemented"))
     }
 
@@ -431,7 +431,7 @@ impl MutationRoot {
             desc = "Name which to add"
         )]
         _name: String
-    ) -> FieldResult<Climb> {
+    ) -> Result<Climb> {
         Err(Error::new("Not implemented"))
     }
 
@@ -446,7 +446,7 @@ impl MutationRoot {
             desc = "Name which to remove"
         )]
         _name: String
-    ) -> FieldResult<Climb> {
+    ) -> Result<Climb> {
         Err(Error::new("Not implemented"))
     }
 
@@ -461,7 +461,7 @@ impl MutationRoot {
             desc = "Grade which to add"
         )]
         _grade: Grade
-    ) -> FieldResult<Climb> {
+    ) -> Result<Climb> {
         Err(Error::new("Not implemented"))
     }
 
@@ -470,7 +470,7 @@ impl MutationRoot {
         _ctx: &Context<'a>,
         #[graphql(desc = "Climb id to remove grade from")] _id: i32,
         #[graphql(desc = "Grade to remove")] _grade: Grade,
-    ) -> FieldResult<Climb> {
+    ) -> Result<Climb> {
         Err(Error::new("Not implemented"))
     }
 
@@ -481,7 +481,7 @@ impl MutationRoot {
             desc = "Removes climb with given id"
         )]
         _id: i32,
-    ) -> FieldResult<Climb> {
+    ) -> Result<Climb> {
         Err(Error::new("Not implemented"))
     }
 
@@ -492,7 +492,7 @@ impl MutationRoot {
         _area_id: Option<i32>,
         _super_formation_id: Option<i32>,
         _location: Option<Coordinate>,
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 
@@ -507,7 +507,7 @@ impl MutationRoot {
             desc = "Name which to add"
         )]
         _name: String
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 
@@ -522,7 +522,7 @@ impl MutationRoot {
             desc = "Name which to remove"
         )]
         _name: String
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 
@@ -537,7 +537,7 @@ impl MutationRoot {
             desc = "Location of the formation"
         )]
         _location: Coordinate
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 
@@ -548,7 +548,7 @@ impl MutationRoot {
             desc = "Formation id to set location of"
         )]
         _id: i32,
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 
@@ -563,7 +563,7 @@ impl MutationRoot {
             desc = "Area id"
         )]
         _area_id: i32,
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 
@@ -578,7 +578,7 @@ impl MutationRoot {
             desc = "Super formation id"
         )]
         _super_formation_id: i32,
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 
@@ -589,7 +589,7 @@ impl MutationRoot {
             desc = "Formation id to area of"
         )]
         _id: i32,
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 
@@ -602,7 +602,7 @@ impl MutationRoot {
             desc = "Formation id to super-formation of"
         )]
         _id: i32,
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 
@@ -613,7 +613,7 @@ impl MutationRoot {
             desc = "Removes formation with given id"
         )]
         _id: i32,
-    ) -> FieldResult<Formation> {
+    ) -> Result<Formation> {
         Err(Error::new("Not implemented"))
     }
 }
