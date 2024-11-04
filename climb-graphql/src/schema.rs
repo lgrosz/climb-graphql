@@ -95,8 +95,14 @@ impl Formation {
         &self.0
     }
 
-    async fn names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
-        vec![]
+    async fn name<'a>(&self, ctx: &Context<'a>) -> FieldResult<Option<String>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query_one("SELECT name FROM formations WHERE id = $1", &[&self.0]).await?;
+        let value: Option<&str> = result.try_get(0)?;
+
+        Ok(value.map(|name| name.to_string()))
     }
 
     async fn location<'a>(&self, _ctx: &Context<'a>) -> Option<Coordinate> {
@@ -201,13 +207,19 @@ impl QueryRoot {
 
     async fn formation<'a>(
         &self,
-        _ctx: &Context<'a>,
+        ctx: &Context<'a>,
         #[graphql(
-            desc = "Returns the formation with given id"
+            desc = "Formation id"
         )]
-        _id: i32,
+        id: i32,
     ) -> FieldResult<Formation> {
-        Err(Error::new("Not implemented"))
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        // Just check for existence
+        client.query_one("SELECT 1 FROM formations WHERE id = $1", &[&id]).await?;
+
+        Ok(Formation(id))
     }
 }
 
