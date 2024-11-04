@@ -53,16 +53,43 @@ impl Area {
         Ok(value.map(Area))
     }
 
-    async fn sub_areas<'a>(&self, _ctx: &Context<'a>) -> Vec<Area> {
-        vec![]
+    async fn areas<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Area>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT area_id FROM area_closures WHERE super_area_id = $1", &[&self.0]).await?;
+        let areas = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Area))
+            .collect::<Result<Vec<Area>, _>>()?;
+
+        Ok(areas)
     }
 
-    async fn formations<'a>(&self, _ctx: &Context<'a>) -> Vec<Formation> {
-        vec![]
+    async fn formations<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Formation>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT formation_id FROM formation_super_area_closures WHERE super_area_id = $1", &[&self.0]).await?;
+        let formations = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Formation))
+            .collect::<Result<Vec<Formation>, _>>()?;
+
+        Ok(formations)
     }
 
-    async fn climbs<'a>(&self, _ctx: &Context<'a>) -> Vec<Climb> {
-        vec![]
+    async fn climbs<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Climb>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT climb_id FROM climb_super_area_closures WHERE super_area_id = $1", &[&self.0]).await?;
+        let climbs = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Climb))
+            .collect::<Result<Vec<Climb>, _>>()?;
+
+        Ok(climbs)
     }
 }
 
@@ -167,12 +194,30 @@ impl Formation {
         Ok(value.map(Formation))
     }
 
-    async fn sub_formations<'a>(&self, _ctx: &Context<'a>) -> Vec<Formation> {
-        vec![]
+    async fn formations<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Formation>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT formation_id FROM formation_super_formation_closures WHERE super_formation_id = $1", &[&self.0]).await?;
+        let formations = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Formation))
+            .collect::<Result<Vec<Formation>, _>>()?;
+
+        Ok(formations)
     }
 
-    async fn climbs<'a>(&self, _ctx: &Context<'a>) -> Vec<Climb> {
-        vec![]
+    async fn climbs<'a>(&self, ctx: &Context<'a>) -> FieldResult<Vec<Climb>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = client.query("SELECT climb_id FROM climb_super_formation_closures WHERE super_formation_id = $1", &[&self.0]).await?;
+        let climbs = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Climb))
+            .collect::<Result<Vec<Climb>, _>>()?;
+
+        Ok(climbs)
     }
 }
 
