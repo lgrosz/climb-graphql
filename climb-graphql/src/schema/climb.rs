@@ -1,4 +1,4 @@
-use async_graphql::{Context, Enum, InputObject, Object, Result, SimpleObject};
+use async_graphql::{Context, Enum, Error, InputObject, Object, Result, SimpleObject};
 use deadpool_postgres::Pool;
 
 use crate::schema::area::Area;
@@ -37,8 +37,8 @@ impl Climb {
         Ok(value.map(|name| name.to_string()))
     }
 
-    async fn grades<'a>(&self, _ctx: &Context<'a>) -> Option<Vec<Grade>> {
-        None
+    async fn grades<'a>(&self, _ctx: &Context<'a>) -> Result<Option<Vec<Grade>>> {
+        Err(Error::new("Not implemented"))
     }
 
     async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {

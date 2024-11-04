@@ -1,4 +1,4 @@
-use async_graphql::{Context, InputObject, Object, Result, SimpleObject};
+use async_graphql::{Context, Error, InputObject, Object, Result, SimpleObject};
 use deadpool_postgres::Pool;
 
 use crate::schema::area::Area;
@@ -31,8 +31,8 @@ impl Formation {
         Ok(value.map(|name| name.to_string()))
     }
 
-    async fn location<'a>(&self, _ctx: &Context<'a>) -> Option<Coordinate> {
-        None
+    async fn location<'a>(&self, _ctx: &Context<'a>) -> Result<Option<Coordinate>> {
+        Err(Error::new("Not implemented"))
     }
 
     async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
