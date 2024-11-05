@@ -15,10 +15,46 @@ pub struct QueryRoot;
 impl QueryRoot {
     async fn areas<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Parent area id")] _area_id: Option<i32>,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Parent area id")] area_id: Option<i32>,
     ) -> Result<Vec<Area>> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = if let Some(area_id) = area_id {
+            // If `area_id` is provided, find areas with this specific parent
+            client
+                .query(
+                    "
+                    SELECT a.id
+                    FROM areas AS a
+                    INNER JOIN area_closures AS sa ON a.id = sa.area_id
+                    WHERE sa.super_area_id = $1
+                    ",
+                    &[&area_id],
+                )
+                .await?
+        } else {
+            // If `area_id` is None, find areas with no parent (top-level areas)
+            client
+                .query(
+                    "
+                    SELECT a.id
+                    FROM areas AS a
+                    LEFT JOIN area_closures AS sa ON a.id = sa.area_id
+                    WHERE sa.super_area_id IS NULL
+                    ",
+                    &[],
+                )
+                .await?
+        };
+
+        let areas = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Area))
+            .collect::<Result<Vec<Area>, _>>()?;
+
+        Ok(areas)
     }
 
     async fn area<'a>(
@@ -39,11 +75,61 @@ impl QueryRoot {
 
     async fn climbs<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Parent area id")] _area_id: Option<i32>,
-        #[graphql(desc = "Parent formation id")] _formation_id: Option<i32>,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Parent area id")] area_id: Option<i32>,
+        #[graphql(desc = "Parent formation id")] formation_id: Option<i32>,
     ) -> Result<Vec<Climb>> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = if let Some(area_id) = area_id {
+            // If `area_id` is provided, find climbs with this specific parent
+            client
+                .query(
+                    "
+                    SELECT c.id
+                    FROM climbs AS c
+                    INNER JOIN climb_super_area_closures AS sa ON c.id = sa.climb_id
+                    WHERE sa.super_area_id = $1
+                    ",
+                    &[&area_id],
+                )
+                .await?
+        } else if let Some(formation_id) = formation_id {
+            // If `formation_id` is provided, find climbs with this specific parent
+            client
+                .query(
+                    "
+                    SELECT c.id
+                    FROM climbs AS c
+                    INNER JOIN climb_super_formation_closures AS sf ON c.id = sf.climb_id
+                    WHERE sf.super_formation_id = $1
+                    ",
+                    &[&formation_id],
+                )
+                .await?
+        } else {
+            // If `area_id` and `formation_id` are None, find climbs with no parent (top-level climbs)
+            client
+                .query(
+                    "
+                    SELECT c.id
+                    FROM climbs AS c
+                    LEFT JOIN climb_super_area_closures AS sa ON c.id = sa.climb_id
+                    LEFT JOIN climb_super_formation_closures AS sf ON c.id = sf.climb_id
+                    WHERE sa.super_area_id IS NULL AND sf.super_formation_id IS NULL
+                    ",
+                    &[],
+                )
+                .await?
+        };
+
+        let climbs = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Climb))
+            .collect::<Result<Vec<Climb>, _>>()?;
+
+        Ok(climbs)
     }
 
     async fn climb<'a>(
@@ -64,11 +150,61 @@ impl QueryRoot {
 
     async fn formations<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Parent area id")] _area_id: Option<i32>,
-        #[graphql(desc = "Parent formation id")] _formation_id: Option<i32>,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Parent area id")] area_id: Option<i32>,
+        #[graphql(desc = "Parent formation id")] formation_id: Option<i32>,
     ) -> Result<Vec<Formation>> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let result = if let Some(area_id) = area_id {
+            // If `area_id` is provided, find formations with this specific parent
+            client
+                .query(
+                    "
+                    SELECT f.id
+                    FROM formations AS f
+                    INNER JOIN formation_super_area_closures AS sa ON f.id = sa.formation_id
+                    WHERE sa.super_area_id = $1
+                    ",
+                    &[&area_id],
+                )
+                .await?
+        } else if let Some(formation_id) = formation_id {
+            // If `formation_id` is provided, find formations with this specific parent
+            client
+                .query(
+                    "
+                    SELECT f.id
+                    FROM formations AS f
+                    INNER JOIN formation_super_formation_closures AS sf ON f.id = sf.formation_id
+                    WHERE sf.super_formation_id = $1
+                    ",
+                    &[&formation_id],
+                )
+                .await?
+        } else {
+            // If `area_id` and `formation_id` are None, find formations with no parent (top-level formations)
+            client
+                .query(
+                    "
+                    SELECT f.id
+                    FROM formations AS f
+                    LEFT JOIN formation_super_area_closures AS sa ON f.id = sa.formation_id
+                    LEFT JOIN formation_super_formation_closures AS sf ON f.id = sf.formation_id
+                    WHERE sa.super_area_id IS NULL AND sf.super_formation_id IS NULL
+                    ",
+                    &[],
+                )
+                .await?
+        };
+
+        let formations = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Formation))
+            .collect::<Result<Vec<Formation>, _>>()?;
+
+        Ok(formations)
     }
 
     async fn formation<'a>(
