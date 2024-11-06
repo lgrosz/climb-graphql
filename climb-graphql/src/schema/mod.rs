@@ -329,13 +329,45 @@ impl MutationRoot {
 
     async fn add_climb<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Names to associate with the climb")] _names: Option<Vec<String>>,
-        #[graphql(desc = "Grades to associate with the climb")] _grades: Option<Vec<Grade>>,
-        #[graphql(desc = "Parent area id of the climb")] _area_id: Option<i32>,
-        #[graphql(desc = "Parent formation id of the climb")] _formation_id: Option<i32>,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climb name")] name: Option<String>,
+        #[graphql(desc = "Area id")] area_id: Option<i32>,
+        #[graphql(desc = "Formation id")] formation_id: Option<i32>,
     ) -> Result<Climb> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let mut client = pool.get().await?;
+
+        let transaction = client.transaction().await?;
+
+        let id = transaction
+            .query_one(
+                "INSERT INTO climbs (name) VALUES ($1) RETURNING id",
+                &[&name],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        if let Some(area_id) = area_id {
+            transaction
+                .execute(
+                    "INSERT INTO climb_super_area_closures (climb_id, area_id) VALUES ($1, $2)",
+                    &[&id, &area_id],
+                )
+                .await?;
+        }
+
+        if let Some(formation_id) = formation_id {
+            transaction
+                .execute(
+                    "INSERT INTO climb_super_formation_closures (climb_id, formation_id) VALUES ($1, $2)",
+                    &[&id, &formation_id],
+                )
+                .await?;
+        }
+
+        transaction.commit().await?;
+
+        Ok(Climb(id))
     }
 
     async fn add_climb_name<'a>(
@@ -376,10 +408,18 @@ impl MutationRoot {
 
     async fn remove_climb<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Removes climb with given id")] _id: i32,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climb id")] id: i32,
     ) -> Result<Climb> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        client
+            .execute("DELETE FROM climbs WHERE id = $1", &[&id])
+            .await?;
+
+        // TODO Does this make sense?
+        Ok(Climb(id))
     }
 
     async fn add_formation<'a>(
