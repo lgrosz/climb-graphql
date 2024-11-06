@@ -424,13 +424,45 @@ impl MutationRoot {
 
     async fn add_formation<'a>(
         &self,
-        _ctx: &Context<'a>,
-        _names: Option<Vec<String>>,
-        _area_id: Option<i32>,
-        _super_formation_id: Option<i32>,
-        _location: Option<Coordinate>,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Formation name")] name: Option<String>,
+        #[graphql(desc = "Area id")] area_id: Option<i32>,
+        #[graphql(desc = "Formation id")] formation_id: Option<i32>,
     ) -> Result<Formation> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let mut client = pool.get().await?;
+
+        let transaction = client.transaction().await?;
+
+        let id = transaction
+            .query_one(
+                "INSERT INTO formations (name) VALUES ($1) RETURNING id",
+                &[&name],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        if let Some(area_id) = area_id {
+            transaction
+                .execute(
+                    "INSERT INTO formation_super_area_closures (formation_id, super_area_id) VALUES ($1, $2)",
+                    &[&id, &area_id],
+                )
+                .await?;
+        }
+
+        if let Some(formation_id) = formation_id {
+            transaction
+                .execute(
+                    "INSERT INTO formation_super_formation_closures (formation_id, super_formation_id) VALUES ($1, $2)",
+                    &[&id, &formation_id],
+                )
+                .await?;
+        }
+
+        transaction.commit().await?;
+
+        Ok(Formation(id))
     }
 
     async fn add_formation_name<'a>(
@@ -506,9 +538,17 @@ impl MutationRoot {
 
     async fn remove_formation<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Removes formation with given id")] _id: i32,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Formation id")] id: i32,
     ) -> Result<Formation> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        client
+            .execute("DELETE FROM formations WHERE id = $1", &[&id])
+            .await?;
+
+        // TODO Does this make sense?
+        Ok(Formation(id))
     }
 }
