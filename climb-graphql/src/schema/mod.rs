@@ -370,22 +370,24 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
-    async fn add_climb_name<'a>(
+    async fn rename_climb<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Climb id to add name to")] _id: i32,
-        #[graphql(desc = "Name which to add")] _name: String,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climb id")] id: i32,
+        #[graphql(desc = "Climb name")] name: Option<String>,
     ) -> Result<Climb> {
-        todo!()
-    }
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
 
-    async fn remove_climb_name<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Climb id to remove name from")] _id: i32,
-        #[graphql(desc = "Name which to remove")] _name: String,
-    ) -> Result<Climb> {
-        todo!()
+        let id = client
+            .query_one(
+                "UPDATE climbs SET name = $1 WHERE id = $2 RETURNING id",
+                &[&name, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Climb(id))
     }
 
     async fn add_climb_grade<'a>(
