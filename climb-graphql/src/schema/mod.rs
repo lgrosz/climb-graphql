@@ -551,40 +551,69 @@ impl MutationRoot {
         todo!()
     }
 
-    async fn set_formation_area<'a>(
+    async fn move_formation<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Formation id to area of")] _id: i32,
-        #[graphql(desc = "Area id")] _area_id: i32,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Area id")] area_id: Option<i32>,
+        #[graphql(desc = "Super formation id")] super_formation_id: Option<i32>,
     ) -> Result<Formation> {
-        todo!()
-    }
+        let pool = ctx.data::<Pool>()?;
+        let mut client = pool.get().await?;
 
-    async fn set_formation_super_formation<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Formation id to super-formation of")] _id: i32,
-        #[graphql(desc = "Super formation id")] _super_formation_id: i32,
-    ) -> Result<Formation> {
-        todo!()
-    }
+        let transaction = client.transaction().await?;
 
-    async fn clear_formation_area<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Formation id to area of")] _id: i32,
-    ) -> Result<Formation> {
-        todo!()
-    }
+        if area_id.is_none() {
+            transaction
+                .execute(
+                    "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
+                    &[&id],
+                )
+                .await?;
+        }
 
-    // TODO This same thing as `clear_formation_area`. Is there a common name I can use to avoid
-    // this duplication? Or from an outside view, does it make sense to keep them separate?
-    async fn clear_formation_super_formation<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Formation id to super-formation of")] _id: i32,
-    ) -> Result<Formation> {
-        todo!()
+        if super_formation_id.is_none() {
+            transaction
+                .execute(
+                    "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
+                    &[&id],
+                )
+                .await?;
+        }
+
+        if let Some(area_id) = area_id {
+            transaction
+                .execute(
+                    "
+                    INSERT INTO formation_super_area_closures (formation_id, super_area_id)
+                    VALUES ($1, $2)
+                    ON CONFLICT (formation_id)
+                    DO UPDATE SET
+                    super_area_id = EXCLUDED.super_area_id
+                    ",
+                    &[&id, &area_id],
+                )
+                .await?;
+        }
+
+        if let Some(super_formation_id) = super_formation_id {
+            transaction
+                .execute(
+                    "
+                    INSERT INTO formation_super_formation_closures (formation_id, super_formation_id)
+                    VALUES ($1, $2)
+                    ON CONFLICT (formation_id)
+                    DO UPDATE SET
+                    super_formation_id = EXCLUDED.super_formation_id
+                    ",
+                    &[&id, &super_formation_id],
+                )
+                .await?;
+        }
+
+        transaction.commit().await?;
+
+        Ok(Formation(id))
     }
 
     async fn remove_formation<'a>(
