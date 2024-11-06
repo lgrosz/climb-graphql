@@ -230,53 +230,101 @@ pub struct MutationRoot;
 impl MutationRoot {
     async fn add_area<'a>(
         &self,
-        _ctx: &Context<'a>,
-        _names: Option<Vec<String>>,
-        _super_area_id: Option<i32>,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Area name")] name: Option<String>,
+        #[graphql(desc = "Super area id")] super_area_id: Option<i32>,
     ) -> Result<Area> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let mut client = pool.get().await?;
+
+        let transaction = client.transaction().await?;
+
+        let area_id = transaction
+            .query_one(
+                "INSERT INTO areas (name) VALUES ($1) RETURNING id",
+                &[&name],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        if let Some(super_area_id) = super_area_id {
+            transaction
+                .execute(
+                    "INSERT INTO area_closures (area_id, super_area_id) VALUES ($1, $2)",
+                    &[&area_id, &super_area_id],
+                )
+                .await?;
+        }
+
+        transaction.commit().await?;
+
+        Ok(Area(area_id))
     }
 
-    async fn add_area_name<'a>(
+    async fn rename_area<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Area id to add name to")] _id: i32,
-        #[graphql(desc = "Name which to add")] _name: String,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Area id")] id: i32,
+        #[graphql(desc = "Area name")] name: Option<String>,
     ) -> Result<Area> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let area_id = client
+            .query_one(
+                "UPDATE areas SET name = $1 WHERE id = $2 RETURNING id",
+                &[&name, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Area(area_id))
     }
 
-    async fn remove_area_name<'a>(
+    async fn move_area<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Area id to remove name from")] _id: i32,
-        #[graphql(desc = "Name which to remove")] _name: String,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Area id")] id: i32,
+        #[graphql(desc = "Super area id")] super_area_id: Option<i32>,
     ) -> Result<Area> {
-        todo!()
-    }
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
 
-    async fn set_super_area<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Area id to set 'super area' of")] _id: i32,
-        #[graphql(desc = "Super area id")] _super_area_id: i32,
-    ) -> Result<Area> {
-        todo!()
-    }
-    async fn clear_super_area<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Area id to clear 'super area' of")] _id: i32,
-    ) -> Result<Area> {
-        todo!()
+        if let Some(super_area_id) = super_area_id {
+            client
+                .execute(
+                    "
+                    INSERT INTO area_closures (area_id, super_area_id)
+                    VALUES ($1, $2)
+                    ON CONFLICT (area_id)
+                    DO UPDATE SET
+                    super_area_id = EXCLUDED.super_area_id
+                    ",
+                    &[&id, &super_area_id],
+                )
+                .await?;
+        } else {
+            client
+                .execute("DELETE FROM area_closures WHERE area_id = $1", &[&id])
+                .await?;
+        }
+
+        Ok(Area(id))
     }
 
     async fn remove_area<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Removes area with given id")] _id: i32,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Area id")] id: i32,
     ) -> Result<Area> {
-        todo!()
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        client
+            .execute("DELETE FROM areas WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(Area(id))
     }
 
     async fn add_climb<'a>(
