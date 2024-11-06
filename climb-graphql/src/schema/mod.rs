@@ -514,22 +514,24 @@ impl MutationRoot {
         Ok(Formation(id))
     }
 
-    async fn add_formation_name<'a>(
+    async fn rename_formation<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Formation id to add name to")] _id: i32,
-        #[graphql(desc = "Name which to add")] _name: String,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Formation name")] name: Option<String>,
     ) -> Result<Formation> {
-        todo!()
-    }
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
 
-    async fn remove_formation_name<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Formation id to remove name from")] _id: i32,
-        #[graphql(desc = "Name which to remove")] _name: String,
-    ) -> Result<Formation> {
-        todo!()
+        let id = client
+            .query_one(
+                "UPDATE formations SET name = $1 WHERE id = $2 RETURNING id",
+                &[&name, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Formation(id))
     }
 
     async fn set_formation_location<'a>(
