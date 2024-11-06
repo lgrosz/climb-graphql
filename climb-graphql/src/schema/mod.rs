@@ -2,7 +2,7 @@ use async_graphql::{Context, Object, Result};
 use deadpool_postgres::Pool;
 
 use area::Area;
-use climb::{Climb, Grade};
+use climb::Climb;
 use formation::{Coordinate, Formation};
 
 pub mod area;
@@ -388,24 +388,6 @@ impl MutationRoot {
             .get::<_, i32>(0);
 
         Ok(Climb(id))
-    }
-
-    async fn add_climb_grade<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Climb id to add grade to")] _id: i32,
-        #[graphql(desc = "Grade which to add")] _grade: Grade,
-    ) -> Result<Climb> {
-        todo!()
-    }
-
-    async fn remove_climb_grade<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Climb id to remove grade from")] _id: i32,
-        #[graphql(desc = "Grade to remove")] _grade: Grade,
-    ) -> Result<Climb> {
-        todo!()
     }
 
     async fn remove_climb<'a>(
