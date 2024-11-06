@@ -390,6 +390,71 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
+    async fn move_climb<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climb id")] id: i32,
+        #[graphql(desc = "Area id")] area_id: Option<i32>,
+        #[graphql(desc = "Formation id")] formation_id: Option<i32>,
+    ) -> Result<Climb> {
+        let pool = ctx.data::<Pool>()?;
+        let mut client = pool.get().await?;
+
+        let transaction = client.transaction().await?;
+
+        if area_id.is_none() {
+            transaction
+                .execute(
+                    "DELETE FROM climb_super_area_closures WHERE climb_id = $1",
+                    &[&id],
+                )
+                .await?;
+        }
+
+        if formation_id.is_none() {
+            transaction
+                .execute(
+                    "DELETE FROM climb_super_area_closures WHERE climb_id = $1",
+                    &[&id],
+                )
+                .await?;
+        }
+
+        if let Some(area_id) = area_id {
+            transaction
+                .execute(
+                    "
+                    INSERT INTO climb_super_area_closures (climb_id, super_area_id)
+                    VALUES ($1, $2)
+                    ON CONFLICT (climb_id)
+                    DO UPDATE SET
+                    super_area_id = EXCLUDED.super_area_id
+                    ",
+                    &[&id, &area_id],
+                )
+                .await?;
+        }
+
+        if let Some(formation_id) = formation_id {
+            transaction
+                .execute(
+                    "
+                    INSERT INTO climb_super_formation_closures (climb_id, super_formation_id)
+                    VALUES ($1, $2)
+                    ON CONFLICT (climb_id)
+                    DO UPDATE SET
+                    super_formation_id = EXCLUDED.super_formation_id
+                    ",
+                    &[&id, &formation_id],
+                )
+                .await?;
+        }
+
+        transaction.commit().await?;
+
+        Ok(Climb(id))
+    }
+
     async fn remove_climb<'a>(
         &self,
         ctx: &Context<'a>,
