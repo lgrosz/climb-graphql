@@ -475,6 +475,7 @@ impl MutationRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Formation name")] name: Option<String>,
+        #[graphql(desc = "Formation location")] location: Option<Coordinate>,
         #[graphql(desc = "Area id")] area_id: Option<i32>,
         #[graphql(desc = "Formation id")] formation_id: Option<i32>,
     ) -> Result<Formation> {
@@ -483,10 +484,13 @@ impl MutationRoot {
 
         let transaction = client.transaction().await?;
 
+        let point =
+            location.map(|coord| postgis::ewkb::Point::new(coord.longitude, coord.latitude, None));
+
         let id = transaction
             .query_one(
-                "INSERT INTO formations (name) VALUES ($1) RETURNING id",
-                &[&name],
+                "INSERT INTO formations (name, location) VALUES ($1, $2) RETURNING id",
+                &[&name, &point],
             )
             .await?
             .get::<_, i32>(0);
@@ -534,21 +538,27 @@ impl MutationRoot {
         Ok(Formation(id))
     }
 
-    async fn set_formation_location<'a>(
+    async fn relocate_formation<'a>(
         &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Formation id to set location of")] _id: i32,
-        #[graphql(desc = "Location of the formation")] _location: Coordinate,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Formation location")] location: Option<Coordinate>,
     ) -> Result<Formation> {
-        todo!()
-    }
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
 
-    async fn clear_formation_location<'a>(
-        &self,
-        _ctx: &Context<'a>,
-        #[graphql(desc = "Formation id to set location of")] _id: i32,
-    ) -> Result<Formation> {
-        todo!()
+        let point =
+            location.map(|coord| postgis::ewkb::Point::new(coord.longitude, coord.latitude, None));
+
+        let id = client
+            .query_one(
+                "UPDATE formations SET location = $1 WHERE id = $2 RETURNING id",
+                &[&point, &id],
+            )
+            .await?
+            .try_get::<_, i32>(0)?;
+
+        Ok(Formation(id))
     }
 
     async fn move_formation<'a>(

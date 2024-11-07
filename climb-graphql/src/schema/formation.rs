@@ -31,8 +31,16 @@ impl Formation {
         Ok(value.map(|name| name.to_string()))
     }
 
-    async fn location<'a>(&self, _ctx: &Context<'a>) -> Result<Option<Coordinate>> {
-        todo!()
+    async fn location<'a>(&self, ctx: &Context<'a>) -> Result<Option<Coordinate>> {
+        let pool = ctx.data::<Pool>()?;
+        let client = pool.get().await?;
+
+        let maybe_point = client
+            .query_one("SELECT location FROM formations WHERE id = $1", &[&self.0])
+            .await?
+            .try_get::<_, Option<postgis::ewkb::Point>>(0)?;
+
+        Ok(maybe_point.map(|point| Coordinate { latitude: point.y, longitude: point.x }))
     }
 
     async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
