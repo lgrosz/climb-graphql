@@ -225,13 +225,13 @@ impl QueryRoot {
 }
 
 #[derive(OneofObject)]
-enum ClimbParent {
+enum ClimbParentInput {
     Area(i32),
     Formation(i32),
 }
 
 #[derive(OneofObject)]
-enum FormationParent {
+enum FormationParentInput {
     Area(i32),
     Formation(i32),
 }
@@ -343,7 +343,7 @@ impl MutationRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Climb name")] name: Option<String>,
-        #[graphql(desc = "Climb parent")] parent: Option<ClimbParent>,
+        #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Climb> {
         let pool = ctx.data::<Pool>()?;
         let mut client = pool.get().await?;
@@ -360,7 +360,7 @@ impl MutationRoot {
 
         if let Some(parent) = parent {
             match parent {
-                ClimbParent::Area(area_id) => {
+                ClimbParentInput::Area(area_id) => {
                     transaction
                         .execute(
                             "INSERT INTO climb_super_area_closures (climb_id, super_area_id) VALUES ($1, $2)",
@@ -369,7 +369,7 @@ impl MutationRoot {
                         .await?;
                 }
 
-                ClimbParent::Formation(formation_id) => {
+                ClimbParentInput::Formation(formation_id) => {
                     transaction
                         .execute(
                             "INSERT INTO climb_super_formation_closures (climb_id, super_formation_id) VALUES ($1, $2)",
@@ -409,7 +409,7 @@ impl MutationRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Climb id")] id: i32,
-        #[graphql(desc = "Climb parent")] parent: Option<ClimbParent>,
+        #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Climb> {
         let pool = ctx.data::<Pool>()?;
         let mut client = pool.get().await?;
@@ -418,7 +418,7 @@ impl MutationRoot {
 
         if let Some(parent) = parent {
             match parent {
-                ClimbParent::Area(area_id) => {
+                ClimbParentInput::Area(area_id) => {
                     transaction
                         .execute(
                             "DELETE FROM climb_super_formation_closures WHERE climb_id = $1",
@@ -440,7 +440,7 @@ impl MutationRoot {
                         .await?;
                 }
 
-                ClimbParent::Formation(formation_id) => {
+                ClimbParentInput::Formation(formation_id) => {
                     transaction
                         .execute(
                             "DELETE FROM climb_super_area_closures WHERE climb_id = $1",
@@ -490,7 +490,7 @@ impl MutationRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Formation name")] name: Option<String>,
         #[graphql(desc = "Formation location")] location: Option<Coordinate>,
-        #[graphql(desc = "Formation parent")] parent: Option<FormationParent>,
+        #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Formation> {
         let pool = ctx.data::<Pool>()?;
         let mut client = pool.get().await?;
@@ -510,7 +510,7 @@ impl MutationRoot {
 
         if let Some(parent) = parent {
             match parent {
-                FormationParent::Area(area_id) => {
+                FormationParentInput::Area(area_id) => {
                     transaction
                         .execute(
                             "INSERT INTO formation_super_area_closures (formation_id, super_area_id) VALUES ($1, $2)",
@@ -519,7 +519,7 @@ impl MutationRoot {
                         .await?;
                 }
 
-                FormationParent::Formation(formation_id) => {
+                FormationParentInput::Formation(formation_id) => {
                     transaction
                         .execute(
                             "INSERT INTO formation_super_formation_closures (formation_id, super_formation_id) VALUES ($1, $2)",
@@ -582,7 +582,7 @@ impl MutationRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Formation id")] id: i32,
-        #[graphql(desc = "Formation parent")] parent: Option<FormationParent>,
+        #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Formation> {
         let pool = ctx.data::<Pool>()?;
         let mut client = pool.get().await?;
@@ -591,7 +591,7 @@ impl MutationRoot {
 
         if let Some(parent) = parent {
             match parent {
-                FormationParent::Area(area_id) => {
+                FormationParentInput::Area(area_id) => {
                     transaction
                         .execute(
                             "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
@@ -613,7 +613,7 @@ impl MutationRoot {
                         .await?;
                 }
 
-                FormationParent::Formation(formation_id) => {
+                FormationParentInput::Formation(formation_id) => {
                     transaction
                         .execute(
                             "DELETE FROM formation_super_area_closures WHERE formation_id = $1",

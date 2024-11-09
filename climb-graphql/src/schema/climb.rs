@@ -1,8 +1,14 @@
-use async_graphql::{Context, Enum, InputObject, Object, Result, SimpleObject};
+use async_graphql::{Context, Enum, InputObject, Object, Result, SimpleObject, Union};
 use deadpool_postgres::Pool;
 
 use crate::schema::area::Area;
 use crate::schema::formation::Formation;
+
+#[derive(Union)]
+enum ClimbParent {
+    Area(Area),
+    Formation(Formation),
+}
 
 pub struct Climb(pub i32);
 
@@ -41,41 +47,40 @@ impl Climb {
         todo!()
     }
 
-    async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
+    async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<ClimbParent>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
         let result = client
-            .query(
-                "SELECT super_area_id FROM climb_super_area_closures WHERE climb_id = $1",
+            .query_opt(
+                // TODO The JOIN is unecessary since we know only one can exist given the checks.
+                // Is there a more effecient method?
+                "
+                SELECT sac.super_area_id, sfc.super_formation_id
+                FROM climb_super_area_closures sac
+                FULL JOIN climb_super_formation_closures sfc 
+                ON sac.climb_id = sfc.climb_id
+                WHERE sac.climb_id = $1 OR sfc.climb_id = $1
+                ",
                 &[&self.0],
             )
             .await?;
-        let value: Option<i32> = if let Some(row) = result.first() {
-            row.try_get(0)?
-        } else {
-            None
-        };
 
-        Ok(value.map(Area))
-    }
+        if let Some(row) = result {
+            match (
+                row.try_get::<_, Option<i32>>(0)?,
+                row.try_get::<_, Option<i32>>(1)?,
+            ) {
+                (Some(super_area_id), _) => {
+                    return Ok(Some(ClimbParent::Area(Area(super_area_id))))
+                }
+                (_, Some(super_formation_id)) => {
+                    return Ok(Some(ClimbParent::Formation(Formation(super_formation_id))))
+                }
+                _ => {}
+            }
+        }
 
-    async fn formation<'a>(&self, ctx: &Context<'a>) -> Result<Option<Formation>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
-
-        let result = client
-            .query(
-                "SELECT super_formation_id FROM climb_super_formation_closures WHERE climb_id = $1",
-                &[&self.0],
-            )
-            .await?;
-        let value: Option<i32> = if let Some(row) = result.first() {
-            row.try_get(0)?
-        } else {
-            None
-        };
-
-        Ok(value.map(Formation))
+        Ok(None)
     }
 }
