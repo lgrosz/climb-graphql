@@ -1,4 +1,4 @@
-use async_graphql::{Context, InputObject, Object, Result, SimpleObject};
+use async_graphql::{Context, InputObject, Object, Result, SimpleObject, Union};
 use deadpool_postgres::Pool;
 
 use crate::schema::area::Area;
@@ -9,6 +9,12 @@ use crate::schema::climb::Climb;
 pub struct Coordinate {
     pub latitude: f64,
     pub longitude: f64,
+}
+
+#[derive(Union)]
+enum FormationParent {
+    Area(Area),
+    Formation(Formation),
 }
 
 pub struct Formation(pub i32);
@@ -40,40 +46,47 @@ impl Formation {
             .await?
             .try_get::<_, Option<postgis::ewkb::Point>>(0)?;
 
-        Ok(maybe_point.map(|point| Coordinate { latitude: point.y, longitude: point.x }))
+        Ok(maybe_point.map(|point| Coordinate {
+            latitude: point.y,
+            longitude: point.x,
+        }))
     }
 
-    async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
+    async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<FormationParent>> {
         let pool = ctx.data::<Pool>()?;
         let client = pool.get().await?;
 
         let result = client
-            .query(
-                "SELECT super_area_id FROM formation_super_area_closures WHERE formation_id = $1",
+            .query_opt(
+                // TODO The JOIN is unecessary since we know only one can exist given the checks.
+                // Is there a more effecient method?
+                "
+                SELECT sac.super_area_id, sfc.super_formation_id
+                FROM formation_super_area_closures sac
+                FULL JOIN formation_super_formation_closures sfc 
+                ON sac.formation_id = sfc.formation_id
+                WHERE sac.formation_id = $1 OR sfc.formation_id = $1
+                ",
                 &[&self.0],
             )
             .await?;
-        let value: Option<i32> = if let Some(row) = result.first() {
-            row.try_get(0)?
-        } else {
-            None
-        };
 
-        Ok(value.map(Area))
-    }
+        if let Some(row) = result {
+            match (
+                row.try_get::<_, Option<i32>>(0)?,
+                row.try_get::<_, Option<i32>>(1)?,
+            ) {
+                (Some(super_area_id), _) => {
+                    return Ok(Some(FormationParent::Area(Area(super_area_id))))
+                }
+                (_, Some(super_formation_id)) => {
+                    return Ok(Some(FormationParent::Formation(Formation(super_formation_id))))
+                }
+                _ => {}
+            }
+        }
 
-    async fn formation<'a>(&self, ctx: &Context<'a>) -> Result<Option<Formation>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
-
-        let result = client.query("SELECT super_formation_id FROM formation_super_formation_closures WHERE formation_id = $1", &[&self.0]).await?;
-        let value: Option<i32> = if let Some(row) = result.first() {
-            row.try_get(0)?
-        } else {
-            None
-        };
-
-        Ok(value.map(Formation))
+        Ok(None)
     }
 
     async fn formations<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Formation>> {
