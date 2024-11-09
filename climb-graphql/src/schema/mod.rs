@@ -1,4 +1,4 @@
-use async_graphql::{Context, Object, Result};
+use async_graphql::{Context, Object, OneofObject, Result};
 use deadpool_postgres::Pool;
 
 use area::Area;
@@ -224,6 +224,18 @@ impl QueryRoot {
     }
 }
 
+#[derive(OneofObject)]
+enum ClimbParent {
+    Area(i32),
+    Formation(i32),
+}
+
+#[derive(OneofObject)]
+enum FormationParent {
+    Area(i32),
+    Formation(i32),
+}
+
 pub struct MutationRoot;
 
 #[Object]
@@ -331,8 +343,7 @@ impl MutationRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Climb name")] name: Option<String>,
-        #[graphql(desc = "Area id")] area_id: Option<i32>,
-        #[graphql(desc = "Formation id")] formation_id: Option<i32>,
+        #[graphql(desc = "Climb parent")] parent: Option<ClimbParent>,
     ) -> Result<Climb> {
         let pool = ctx.data::<Pool>()?;
         let mut client = pool.get().await?;
@@ -347,22 +358,26 @@ impl MutationRoot {
             .await?
             .get::<_, i32>(0);
 
-        if let Some(area_id) = area_id {
-            transaction
-                .execute(
-                    "INSERT INTO climb_super_area_closures (climb_id, area_id) VALUES ($1, $2)",
-                    &[&id, &area_id],
-                )
-                .await?;
-        }
+        if let Some(parent) = parent {
+            match parent {
+                ClimbParent::Area(area_id) => {
+                    transaction
+                        .execute(
+                            "INSERT INTO climb_super_area_closures (climb_id, super_area_id) VALUES ($1, $2)",
+                            &[&id, &area_id],
+                        )
+                        .await?;
+                }
 
-        if let Some(formation_id) = formation_id {
-            transaction
-                .execute(
-                    "INSERT INTO climb_super_formation_closures (climb_id, formation_id) VALUES ($1, $2)",
-                    &[&id, &formation_id],
-                )
-                .await?;
+                ClimbParent::Formation(formation_id) => {
+                    transaction
+                        .execute(
+                            "INSERT INTO climb_super_formation_closures (climb_id, super_formation_id) VALUES ($1, $2)",
+                            &[&id, &formation_id],
+                        )
+                        .await?;
+                }
+            }
         }
 
         transaction.commit().await?;
@@ -394,60 +409,59 @@ impl MutationRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Climb id")] id: i32,
-        #[graphql(desc = "Area id")] area_id: Option<i32>,
-        #[graphql(desc = "Formation id")] formation_id: Option<i32>,
+        #[graphql(desc = "Climb parent")] parent: Option<ClimbParent>,
     ) -> Result<Climb> {
         let pool = ctx.data::<Pool>()?;
         let mut client = pool.get().await?;
 
         let transaction = client.transaction().await?;
 
-        if area_id.is_none() {
-            transaction
-                .execute(
-                    "DELETE FROM climb_super_area_closures WHERE climb_id = $1",
-                    &[&id],
-                )
-                .await?;
-        }
+        if let Some(parent) = parent {
+            match parent {
+                ClimbParent::Area(area_id) => {
+                    transaction
+                        .execute(
+                            "DELETE FROM climb_super_formation_closures WHERE climb_id = $1",
+                            &[&id],
+                        )
+                        .await?;
 
-        if formation_id.is_none() {
-            transaction
-                .execute(
-                    "DELETE FROM climb_super_area_closures WHERE climb_id = $1",
-                    &[&id],
-                )
-                .await?;
-        }
+                    transaction
+                        .execute(
+                            "
+                            INSERT INTO climb_super_area_closures (climb_id, super_area_id)
+                            VALUES ($1, $2)
+                            ON CONFLICT (climb_id)
+                            DO UPDATE SET
+                            super_area_id = EXCLUDED.super_area_id
+                            ",
+                            &[&id, &area_id],
+                        )
+                        .await?;
+                }
 
-        if let Some(area_id) = area_id {
-            transaction
-                .execute(
-                    "
-                    INSERT INTO climb_super_area_closures (climb_id, super_area_id)
-                    VALUES ($1, $2)
-                    ON CONFLICT (climb_id)
-                    DO UPDATE SET
-                    super_area_id = EXCLUDED.super_area_id
-                    ",
-                    &[&id, &area_id],
-                )
-                .await?;
-        }
+                ClimbParent::Formation(formation_id) => {
+                    transaction
+                        .execute(
+                            "DELETE FROM climb_super_area_closures WHERE climb_id = $1",
+                            &[&id],
+                        )
+                        .await?;
 
-        if let Some(formation_id) = formation_id {
-            transaction
-                .execute(
-                    "
-                    INSERT INTO climb_super_formation_closures (climb_id, super_formation_id)
-                    VALUES ($1, $2)
-                    ON CONFLICT (climb_id)
-                    DO UPDATE SET
-                    super_formation_id = EXCLUDED.super_formation_id
-                    ",
-                    &[&id, &formation_id],
-                )
-                .await?;
+                    transaction
+                        .execute(
+                            "
+                            INSERT INTO climb_super_formation_closures (climb_id, super_formation_id)
+                            VALUES ($1, $2)
+                            ON CONFLICT (climb_id)
+                            DO UPDATE SET
+                            super_formation_id = EXCLUDED.super_formation_id
+                            ",
+                            &[&id, &formation_id],
+                        )
+                        .await?;
+                }
+            }
         }
 
         transaction.commit().await?;
@@ -476,8 +490,7 @@ impl MutationRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Formation name")] name: Option<String>,
         #[graphql(desc = "Formation location")] location: Option<Coordinate>,
-        #[graphql(desc = "Area id")] area_id: Option<i32>,
-        #[graphql(desc = "Formation id")] formation_id: Option<i32>,
+        #[graphql(desc = "Formation parent")] parent: Option<FormationParent>,
     ) -> Result<Formation> {
         let pool = ctx.data::<Pool>()?;
         let mut client = pool.get().await?;
@@ -495,22 +508,26 @@ impl MutationRoot {
             .await?
             .get::<_, i32>(0);
 
-        if let Some(area_id) = area_id {
-            transaction
-                .execute(
-                    "INSERT INTO formation_super_area_closures (formation_id, super_area_id) VALUES ($1, $2)",
-                    &[&id, &area_id],
-                )
-                .await?;
-        }
+        if let Some(parent) = parent {
+            match parent {
+                FormationParent::Area(area_id) => {
+                    transaction
+                        .execute(
+                            "INSERT INTO formation_super_area_closures (formation_id, super_area_id) VALUES ($1, $2)",
+                            &[&id, &area_id],
+                        )
+                        .await?;
+                }
 
-        if let Some(formation_id) = formation_id {
-            transaction
-                .execute(
-                    "INSERT INTO formation_super_formation_closures (formation_id, super_formation_id) VALUES ($1, $2)",
-                    &[&id, &formation_id],
-                )
-                .await?;
+                FormationParent::Formation(formation_id) => {
+                    transaction
+                        .execute(
+                            "INSERT INTO formation_super_formation_closures (formation_id, super_formation_id) VALUES ($1, $2)",
+                            &[&id, &formation_id],
+                        )
+                        .await?;
+                }
+            }
         }
 
         transaction.commit().await?;
@@ -565,62 +582,60 @@ impl MutationRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Formation id")] id: i32,
-        #[graphql(desc = "Area id")] area_id: Option<i32>,
-        #[graphql(desc = "Super formation id")] super_formation_id: Option<i32>,
+        #[graphql(desc = "Formation parent")] parent: Option<FormationParent>,
     ) -> Result<Formation> {
         let pool = ctx.data::<Pool>()?;
         let mut client = pool.get().await?;
 
         let transaction = client.transaction().await?;
 
-        if area_id.is_none() {
-            transaction
-                .execute(
-                    "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
-                    &[&id],
-                )
-                .await?;
-        }
+        if let Some(parent) = parent {
+            match parent {
+                FormationParent::Area(area_id) => {
+                    transaction
+                        .execute(
+                            "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
+                            &[&id],
+                        )
+                        .await?;
 
-        if super_formation_id.is_none() {
-            transaction
-                .execute(
-                    "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
-                    &[&id],
-                )
-                .await?;
-        }
+                    transaction
+                        .execute(
+                            "
+                            INSERT INTO formation_super_area_closures (formation_id, super_area_id)
+                            VALUES ($1, $2)
+                            ON CONFLICT (formation_id)
+                            DO UPDATE SET
+                            super_area_id = EXCLUDED.super_area_id
+                            ",
+                            &[&id, &area_id],
+                        )
+                        .await?;
+                }
 
-        if let Some(area_id) = area_id {
-            transaction
-                .execute(
-                    "
-                    INSERT INTO formation_super_area_closures (formation_id, super_area_id)
-                    VALUES ($1, $2)
-                    ON CONFLICT (formation_id)
-                    DO UPDATE SET
-                    super_area_id = EXCLUDED.super_area_id
-                    ",
-                    &[&id, &area_id],
-                )
-                .await?;
-        }
+                FormationParent::Formation(formation_id) => {
+                    transaction
+                        .execute(
+                            "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
+                            &[&id],
+                        )
+                        .await?;
 
-        if let Some(super_formation_id) = super_formation_id {
-            transaction
-                .execute(
-                    "
-                    INSERT INTO formation_super_formation_closures (formation_id, super_formation_id)
-                    VALUES ($1, $2)
-                    ON CONFLICT (formation_id)
-                    DO UPDATE SET
-                    super_formation_id = EXCLUDED.super_formation_id
-                    ",
-                    &[&id, &super_formation_id],
-                )
-                .await?;
+                    transaction
+                        .execute(
+                            "
+                            INSERT INTO formation_super_formation_closures (formation_id, super_formation_id)
+                            VALUES ($1, $2)
+                            ON CONFLICT (formation_id)
+                            DO UPDATE SET
+                            super_formation_id = EXCLUDED.super_formation_id
+                            ",
+                            &[&id, &formation_id],
+                        )
+                        .await?;
+                }
+            }
         }
-
         transaction.commit().await?;
 
         Ok(Formation(id))
