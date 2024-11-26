@@ -19,10 +19,15 @@ async fn graphiql() -> impl IntoResponse {
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
+struct GraphQLConfig {
+    pub host: String,
+    pub port: u32,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
 struct Config {
     pub pg: deadpool_postgres::Config,
-    pub graphqladdress: String,
-    pub graphqlport: u32,
+    pub graphql: GraphQLConfig,
 }
 
 pub struct AppData {
@@ -33,8 +38,8 @@ impl Config {
     pub fn from_env() -> Result<Self, config::ConfigError> {
         let cfg = config::Config::builder()
             .add_source(config::Environment::default().separator("__"))
-            .set_default("graphqladdress", "127.0.0.1")?
-            .set_default("graphqlport", 8000)?
+            .set_default("graphql.host", "127.0.0.1")?
+            .set_default("graphql.port", 8000)?
             .build()?;
         cfg.try_deserialize()
     }
@@ -51,9 +56,9 @@ async fn main() {
 
     let app = Router::new().route("/graphql", get(graphiql).post_service(GraphQL::new(schema)));
 
-    println!("GraphiQL IDE: http://{}:{}/graphql", cfg.graphqladdress, cfg.graphqlport);
+    println!("GraphiQL IDE: http://{}:{}/graphql", cfg.graphql.host, cfg.graphql.port);
 
-    axum::serve(TcpListener::bind(format!("{}:{}", cfg.graphqladdress, cfg.graphqlport)).await.unwrap(), app)
+    axum::serve(TcpListener::bind(format!("{}:{}", cfg.graphql.host, cfg.graphql.port)).await.unwrap(), app)
         .await
         .unwrap();
 }
