@@ -1,8 +1,8 @@
 use async_graphql::{Context, Object, Result};
-use deadpool_postgres::Pool;
 
 use crate::schema::climb::Climb;
 use crate::schema::formation::Formation;
+use crate::AppData;
 
 pub struct Area(pub i32);
 
@@ -13,8 +13,8 @@ impl Area {
     }
 
     async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query_one("SELECT name FROM areas WHERE id = $1", &[&self.0])
@@ -25,8 +25,8 @@ impl Area {
     }
 
     async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query(
@@ -44,8 +44,8 @@ impl Area {
     }
 
     async fn areas<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Area>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query(
@@ -62,8 +62,8 @@ impl Area {
     }
 
     async fn formations<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Formation>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query(
@@ -80,8 +80,8 @@ impl Area {
     }
 
     async fn climbs<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Climb>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query(

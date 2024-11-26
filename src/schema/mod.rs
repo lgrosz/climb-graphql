@@ -1,10 +1,11 @@
 use async_graphql::{Context, Enum, InputObject, Object, OneofObject, Result};
-use deadpool_postgres::Pool;
 
 use area::Area;
 use climb::Climb;
 use formation::{Coordinate, Formation};
 use postgres_types::ToSql;
+
+use crate::AppData;
 
 pub mod area;
 pub mod climb;
@@ -74,8 +75,8 @@ impl QueryRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Parent area id")] area_id: Option<i32>,
     ) -> Result<Vec<Area>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = if let Some(area_id) = area_id {
             // If `area_id` is provided, find areas with this specific parent
@@ -118,8 +119,8 @@ impl QueryRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Area id")] id: i32,
     ) -> Result<Area> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         // Just check for existence
         client
@@ -135,8 +136,8 @@ impl QueryRoot {
         #[graphql(desc = "Parent area id")] area_id: Option<i32>,
         #[graphql(desc = "Parent formation id")] formation_id: Option<i32>,
     ) -> Result<Vec<Climb>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = if let Some(area_id) = area_id {
             // If `area_id` is provided, find climbs with this specific parent
@@ -193,8 +194,8 @@ impl QueryRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Climb id")] id: i32,
     ) -> Result<Climb> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         // Just check for existence
         client
@@ -210,8 +211,8 @@ impl QueryRoot {
         #[graphql(desc = "Parent area id")] area_id: Option<i32>,
         #[graphql(desc = "Parent formation id")] formation_id: Option<i32>,
     ) -> Result<Vec<Formation>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = if let Some(area_id) = area_id {
             // If `area_id` is provided, find formations with this specific parent
@@ -268,8 +269,8 @@ impl QueryRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Formation id")] id: i32,
     ) -> Result<Formation> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         // Just check for existence
         client
@@ -302,8 +303,8 @@ impl MutationRoot {
         #[graphql(desc = "Area name")] name: Option<String>,
         #[graphql(desc = "Super area id")] super_area_id: Option<i32>,
     ) -> Result<Area> {
-        let pool = ctx.data::<Pool>()?;
-        let mut client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let mut client = data.pg_pool.get().await?;
 
         let transaction = client.transaction().await?;
 
@@ -335,8 +336,8 @@ impl MutationRoot {
         #[graphql(desc = "Area id")] id: i32,
         #[graphql(desc = "Area name")] name: Option<String>,
     ) -> Result<Area> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let area_id = client
             .query_one(
@@ -355,8 +356,8 @@ impl MutationRoot {
         #[graphql(desc = "Area id")] id: i32,
         #[graphql(desc = "Super area id")] super_area_id: Option<i32>,
     ) -> Result<Area> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         if let Some(super_area_id) = super_area_id {
             client
@@ -385,8 +386,8 @@ impl MutationRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Area id")] id: i32,
     ) -> Result<Area> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         client
             .execute("DELETE FROM areas WHERE id = $1", &[&id])
@@ -401,8 +402,8 @@ impl MutationRoot {
         #[graphql(desc = "Climb name")] name: Option<String>,
         #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Climb> {
-        let pool = ctx.data::<Pool>()?;
-        let mut client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let mut client = data.pg_pool.get().await?;
 
         let transaction = client.transaction().await?;
 
@@ -447,8 +448,8 @@ impl MutationRoot {
         #[graphql(desc = "Climb id")] id: i32,
         #[graphql(desc = "Climb name")] name: Option<String>,
     ) -> Result<Climb> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let id = client
             .query_one(
@@ -467,8 +468,8 @@ impl MutationRoot {
         #[graphql(desc = "Climb id")] id: i32,
         #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Climb> {
-        let pool = ctx.data::<Pool>()?;
-        let mut client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let mut client = data.pg_pool.get().await?;
 
         let transaction = client.transaction().await?;
 
@@ -532,8 +533,8 @@ impl MutationRoot {
         #[graphql(desc = "Grade")] grade: GradeInput,
         #[graphql(desc = "Operation")] operation: GradeOperation,
     ) -> Result<Climb> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         match operation {
             GradeOperation::Add => match grade {
@@ -623,8 +624,8 @@ impl MutationRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Climb id")] id: i32,
     ) -> Result<Climb> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         client
             .execute("DELETE FROM climbs WHERE id = $1", &[&id])
@@ -641,8 +642,8 @@ impl MutationRoot {
         #[graphql(desc = "Formation location")] location: Option<Coordinate>,
         #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Formation> {
-        let pool = ctx.data::<Pool>()?;
-        let mut client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let mut client = data.pg_pool.get().await?;
 
         let transaction = client.transaction().await?;
 
@@ -690,8 +691,8 @@ impl MutationRoot {
         #[graphql(desc = "Formation id")] id: i32,
         #[graphql(desc = "Formation name")] name: Option<String>,
     ) -> Result<Formation> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let id = client
             .query_one(
@@ -710,8 +711,8 @@ impl MutationRoot {
         #[graphql(desc = "Formation id")] id: i32,
         #[graphql(desc = "Formation location")] location: Option<Coordinate>,
     ) -> Result<Formation> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let point =
             location.map(|coord| postgis::ewkb::Point::new(coord.longitude, coord.latitude, None));
@@ -733,8 +734,8 @@ impl MutationRoot {
         #[graphql(desc = "Formation id")] id: i32,
         #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Formation> {
-        let pool = ctx.data::<Pool>()?;
-        let mut client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let mut client = data.pg_pool.get().await?;
 
         let transaction = client.transaction().await?;
 
@@ -795,8 +796,8 @@ impl MutationRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Formation id")] id: i32,
     ) -> Result<Formation> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         client
             .execute("DELETE FROM formations WHERE id = $1", &[&id])

@@ -1,9 +1,9 @@
 use async_graphql::{Context, Enum, Object, Result, SimpleObject, Union};
-use deadpool_postgres::Pool;
 use postgres_types::FromSql;
 
 use crate::schema::area::Area;
 use crate::schema::formation::Formation;
+use crate::AppData;
 
 #[derive(Union)]
 enum ClimbParent {
@@ -69,8 +69,8 @@ impl Climb {
     }
 
     async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query_one("SELECT name FROM climbs WHERE id = $1", &[&self.0])
@@ -81,8 +81,8 @@ impl Climb {
     }
 
     async fn grades<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Grade>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let verm_grades: Vec<Grade> = client
             .query(
@@ -168,8 +168,8 @@ impl Climb {
     }
 
     async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<ClimbParent>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query_opt(

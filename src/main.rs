@@ -25,6 +25,10 @@ struct Config {
     pub graphqlport: u32,
 }
 
+pub struct AppData {
+    pub pg_pool: deadpool_postgres::Pool,
+}
+
 impl Config {
     pub fn from_env() -> Result<Self, config::ConfigError> {
         let cfg = config::Config::builder()
@@ -39,9 +43,10 @@ impl Config {
 #[tokio::main]
 async fn main() {
     let cfg = Config::from_env().expect("Environment was not enough to setup configuration");
-    let pool = cfg.pg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Could not create pool");
+    let pg_pool = cfg.pg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Could not create pool");
+    let context = AppData { pg_pool };
     let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
-        .data(pool)
+        .data(context)
         .finish();
 
     let app = Router::new().route("/graphql", get(graphiql).post_service(GraphQL::new(schema)));
