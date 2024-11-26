@@ -1,3 +1,14 @@
-[workspace]
-resolver = "2"
-members = ["climb-graphql"]
+[package]
+name = "climb-graphql"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-graphql = "7.0.7"
+async-graphql-axum = "7.0.7"
+axum = "0.7.5"
+deadpool-postgres = "0.14.0"
+postgis = "0.9.0"
+postgres-types = { version = "0.2.8", features = ["derive"] }
+tokio = { version = "1.39.2", features = ["rt-multi-thread"] }
+tokio-postgres = "0.7.12"
