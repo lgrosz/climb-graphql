@@ -1,4 +1,5 @@
 mod schema;
+mod s3_client_manager;
 
 use crate::schema::QueryRoot;
 use async_graphql::{http::GraphiQLSource, EmptySubscription, Schema};
@@ -9,6 +10,7 @@ use axum::{
     Router,
 };
 use schema::MutationRoot;
+use std::collections::HashMap;
 use tokio::net::TcpListener;
 use tokio::signal;
 
@@ -29,10 +31,12 @@ struct GraphQLConfig {
 struct Config {
     pub pg: deadpool_postgres::Config,
     pub graphql: GraphQLConfig,
+    pub images: s3_client_manager::S3Config,
 }
 
 pub struct AppData {
     pub pg_pool: deadpool_postgres::Pool,
+    pub s3_pools: HashMap<String, s3_client_manager::Pool>,
 }
 
 impl Config {
@@ -41,6 +45,11 @@ impl Config {
             .add_source(config::Environment::default().separator("__"))
             .set_default("graphql.host", "127.0.0.1")?
             .set_default("graphql.port", 4000)?
+            .set_default("images.host", "127.0.0.1")?
+            .set_default("images.port", 80)?
+            .set_default("images.region", "")?
+            .set_default("images.bucket", "images")?
+            .set_default("images.style", "subdomain")?
             .build()?;
         cfg.try_deserialize()
     }
@@ -49,8 +58,16 @@ impl Config {
 #[tokio::main]
 async fn main() {
     let cfg = Config::from_env().expect("Environment was not enough to setup configuration");
-    let pg_pool = cfg.pg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Could not create pool");
-    let context = AppData { pg_pool };
+
+    let pg_pool = cfg.pg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Could not create PG pool");
+    let s3_images_pool = cfg.images.create_pool().expect("Could not create images pool");
+
+    let mut s3_pools = HashMap::new();
+    s3_pools.insert(cfg.images.bucket, s3_images_pool)
+        .ok_or("Multiple s3 pools have the same bucket")
+        .expect("All s3 pool configurations should point to different buckets");
+
+    let context = AppData { pg_pool, s3_pools };
     let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
         .data(context)
         .finish();
