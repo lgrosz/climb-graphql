@@ -1,8 +1,8 @@
 use async_graphql::{Context, InputObject, Object, Result, SimpleObject, Union};
-use deadpool_postgres::Pool;
 
 use crate::schema::area::Area;
 use crate::schema::climb::Climb;
+use crate::AppData;
 
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "CoordinateInput")]
@@ -26,8 +26,8 @@ impl Formation {
     }
 
     async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query_one("SELECT name FROM formations WHERE id = $1", &[&self.0])
@@ -38,8 +38,8 @@ impl Formation {
     }
 
     async fn location<'a>(&self, ctx: &Context<'a>) -> Result<Option<Coordinate>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let maybe_point = client
             .query_one("SELECT location FROM formations WHERE id = $1", &[&self.0])
@@ -53,8 +53,8 @@ impl Formation {
     }
 
     async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<FormationParent>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query_opt(
@@ -90,8 +90,8 @@ impl Formation {
     }
 
     async fn formations<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Formation>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client.query("SELECT formation_id FROM formation_super_formation_closures WHERE super_formation_id = $1", &[&self.0]).await?;
         let formations = result
@@ -103,8 +103,8 @@ impl Formation {
     }
 
     async fn climbs<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Climb>> {
-        let pool = ctx.data::<Pool>()?;
-        let client = pool.get().await?;
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
 
         let result = client
             .query(
