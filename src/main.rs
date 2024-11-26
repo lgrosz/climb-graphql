@@ -39,7 +39,7 @@ impl Config {
         let cfg = config::Config::builder()
             .add_source(config::Environment::default().separator("__"))
             .set_default("graphql.host", "127.0.0.1")?
-            .set_default("graphql.port", 8000)?
+            .set_default("graphql.port", 4000)?
             .build()?;
         cfg.try_deserialize()
     }
