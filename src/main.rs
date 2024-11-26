@@ -11,22 +11,31 @@ use axum::{
 use schema::MutationRoot;
 use tokio::net::TcpListener;
 
-use deadpool_postgres::{Config, ManagerConfig, Pool, RecyclingMethod, Runtime};
+use deadpool_postgres::{Pool, Runtime};
 use tokio_postgres::NoTls;
 
 async fn graphiql() -> impl IntoResponse {
     response::Html(GraphiQLSource::build().endpoint("/graphql").finish())
 }
 
-async fn create_pool() -> Pool {
-    let mut cfg = Config::new();
-    cfg.dbname = Some("climb-pg_test".to_string());
-    cfg.host = Some("localhost".to_string());
-    cfg.manager = Some(ManagerConfig {
-        recycling_method: RecyclingMethod::Fast,
-    });
+#[derive(serde::Deserialize, serde::Serialize)]
+struct Config {
+    pub pg: deadpool_postgres::Config,
+}
 
-    cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap()
+impl Config {
+    pub fn from_env() -> Result<Self, config::ConfigError> {
+        let cfg = config::Config::builder()
+            .add_source(config::Environment::default().separator("__"))
+            .build()?;
+        cfg.try_deserialize()
+    }
+}
+
+async fn create_pool() -> Pool {
+    // NOTE at least PG__DBNAME is required
+    let cfg = Config::from_env().expect("Environment was not enough to setup configuration");
+    cfg.pg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Could not create pool")
 }
 
 #[tokio::main]
