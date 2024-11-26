@@ -288,6 +288,20 @@ impl QueryRoot {
 
         Ok(Formation(id))
     }
+
+    async fn s3_get<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(validator(min_length = 1))] bucket: String,
+        #[graphql(validator(min_length = 1))] object: String,
+    ) -> Result<String> {
+        let data = ctx.data::<AppData>()?;
+        let s3 = data.s3_pools.get(&bucket.to_string())
+            .ok_or(format!("No {} bucket configured", bucket))?
+            .get().await?;
+
+        Ok(s3.presign_get(object.to_string(), 300, None).await?)
+    }
 }
 
 #[derive(OneofObject)]
@@ -826,5 +840,19 @@ impl MutationRoot {
             .get::<_, i32>(0);
 
         Ok(Image(id))
+    }
+
+    async fn s3_put<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(validator(min_length = 1))] bucket: String,
+        #[graphql(validator(min_length = 1))] object: String,
+    ) -> Result<String> {
+        let data = ctx.data::<AppData>()?;
+        let s3 = data.s3_pools.get(&bucket.to_string())
+            .ok_or(format!("No {} bucket configured", bucket))?
+            .get().await?;
+
+        Ok(s3.presign_put(object.to_string(), 300, None, None).await?)
     }
 }
