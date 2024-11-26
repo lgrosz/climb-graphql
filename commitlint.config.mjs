@@ -5,7 +5,6 @@ const Configuration = {
       'readme',
       'ci',
       'repo',
-      'graphql',
     ]],
   },
 };
