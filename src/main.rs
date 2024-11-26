@@ -11,7 +11,7 @@ use axum::{
 use schema::MutationRoot;
 use tokio::net::TcpListener;
 
-use deadpool_postgres::{Pool, Runtime};
+use deadpool_postgres::Runtime;
 use tokio_postgres::NoTls;
 
 async fn graphiql() -> impl IntoResponse {
@@ -21,35 +21,34 @@ async fn graphiql() -> impl IntoResponse {
 #[derive(serde::Deserialize, serde::Serialize)]
 struct Config {
     pub pg: deadpool_postgres::Config,
+    pub graphqladdress: String,
+    pub graphqlport: u32,
 }
 
 impl Config {
     pub fn from_env() -> Result<Self, config::ConfigError> {
         let cfg = config::Config::builder()
             .add_source(config::Environment::default().separator("__"))
+            .set_default("graphqladdress", "127.0.0.1")?
+            .set_default("graphqlport", 8000)?
             .build()?;
         cfg.try_deserialize()
     }
 }
 
-async fn create_pool() -> Pool {
-    // NOTE at least PG__DBNAME is required
-    let cfg = Config::from_env().expect("Environment was not enough to setup configuration");
-    cfg.pg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Could not create pool")
-}
-
 #[tokio::main]
 async fn main() {
-    let pool = create_pool().await;
+    let cfg = Config::from_env().expect("Environment was not enough to setup configuration");
+    let pool = cfg.pg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Could not create pool");
     let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
         .data(pool)
         .finish();
 
     let app = Router::new().route("/graphql", get(graphiql).post_service(GraphQL::new(schema)));
 
-    println!("GraphiQL IDE: http://localhost:8000/graphql");
+    println!("GraphiQL IDE: http://{}:{}/graphql", cfg.graphqladdress, cfg.graphqlport);
 
-    axum::serve(TcpListener::bind("127.0.0.1:8000").await.unwrap(), app)
+    axum::serve(TcpListener::bind(format!("{}:{}", cfg.graphqladdress, cfg.graphqlport)).await.unwrap(), app)
         .await
         .unwrap();
 }
