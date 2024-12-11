@@ -1,4 +1,4 @@
-use async_graphql::{Context, Enum, InputObject, Object, OneofObject, Result};
+use async_graphql::{Context, Enum, InputObject, Object, OneofObject, Result, SimpleObject, Union};
 
 use area::Area;
 use climb::Climb;
@@ -70,10 +70,53 @@ enum GradeOperation {
 
 struct Image(pub i32);
 
+#[derive(Union)]
+enum ImageSource {
+    S3(S3ImageSource),
+}
+
+#[derive(SimpleObject)]
+struct S3ImageSource {
+    pub bucket: String,
+    pub object: String,
+}
+
+impl S3ImageSource {
+    fn from_row(row: &tokio_postgres::Row) -> Self {
+        Self {
+            bucket: row.get("bucket"),
+            object: row.get("object"),
+        }
+    }
+}
+
 #[Object]
 impl Image {
     async fn id(&self) -> &i32 {
         &self.0
+    }
+
+    async fn sources<'a>(&self, ctx: &Context<'a>) -> Result<Vec<ImageSource>> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        let result = client
+            .query(
+                "
+                SELECT a.bucket, a.object
+                FROM images
+                LEFT JOIN s3_image_sources AS a ON images.id = a.image_id
+                WHERE images.id = $1
+                ",
+                &[&self.0],
+            )
+            .await?;
+
+        let sources = result.into_iter()
+            .map(|row| ImageSource::S3(S3ImageSource::from_row(&row)))
+            .collect();
+
+        Ok(sources)
     }
 }
 
@@ -287,6 +330,48 @@ impl QueryRoot {
             .await?;
 
         Ok(Formation(id))
+    }
+
+    async fn image<'a>(
+        &self,
+        ctx: &Context<'a>,
+        id: i32,
+    ) -> Result<Image> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        // Just check for existence
+        client
+            .query_one("SELECT 1 FROM images WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(Image(id))
+    }
+
+    async fn image_source_url<'a>(
+        &self,
+        ctx: &Context<'a>,
+        id: i32,
+        #[graphql(validator(min_length = 1))] name: String,
+    ) -> Result<String> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        // Ensure id is valid
+        client
+            .query_one("SELECT * FROM images WHERE id = $1", &[&id])
+            .await?;
+
+        // Error out if there already exists a source for this image
+        if (client
+            .query_opt("SELECT 1 FROM s3_image_sources WHERE image_id = $1", &[&id])
+            .await?)
+            .is_some()
+        {
+            return Err(async_graphql::Error::new("Source already exists"));
+        }
+
+        Ok(format!("{}/{}", id, name))
     }
 
     async fn s3_get<'a>(
