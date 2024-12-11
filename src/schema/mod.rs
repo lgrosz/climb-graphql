@@ -68,6 +68,15 @@ enum GradeOperation {
     Remove,
 }
 
+struct Image(pub i32);
+
+#[Object]
+impl Image {
+    async fn id(&self) -> &i32 {
+        &self.0
+    }
+}
+
 #[Object]
 impl QueryRoot {
     async fn areas<'a>(
@@ -805,5 +814,17 @@ impl MutationRoot {
 
         // TODO Does this make sense?
         Ok(Formation(id))
+    }
+
+    async fn create_image<'a>(&self, ctx: &Context<'a>) -> Result<Image> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        let id = client
+            .query_one("INSERT INTO images DEFAULT VALUES RETURNING id", &[])
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Image(id))
     }
 }
