@@ -337,6 +337,65 @@ impl QueryRoot {
         Ok(formations)
     }
 
+    async fn formations_by_parent<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
+    ) -> Result<Vec<Formation>> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        let result = match parent {
+            Some(FormationParentInput::Area(area_id)) => {
+                client
+                    .query(
+                        "
+                        SELECT c.id
+                        FROM formations AS c
+                        INNER JOIN formation_super_area_closures AS sa ON c.id = sa.formation_id
+                        WHERE sa.super_area_id = $1
+                        ",
+                        &[&area_id],
+                    )
+                    .await?
+            }
+            Some(FormationParentInput::Formation(formation_id)) => {
+                client
+                    .query(
+                        "
+                        SELECT c.id
+                        FROM formations AS c
+                        INNER JOIN formation_super_formation_closures AS sf ON c.id = sf.formation_id
+                        WHERE sf.super_formation_id = $1
+                        ",
+                        &[&formation_id],
+                    )
+                    .await?
+            }
+            None => {
+                client
+                    .query(
+                        "
+                        SELECT c.id
+                        FROM formations AS c
+                        LEFT JOIN formation_super_area_closures AS sa ON c.id = sa.formation_id
+                        LEFT JOIN formation_super_formation_closures AS sf ON c.id = sf.formation_id
+                        WHERE sa.super_area_id IS NULL AND sf.super_formation_id IS NULL
+                        ",
+                        &[],
+                    )
+                    .await?
+            }
+        };
+
+        let formations = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Formation))
+            .collect::<Result<Vec<Formation>, _>>()?;
+
+        Ok(formations)
+    }
+
     async fn formation<'a>(
         &self,
         ctx: &Context<'a>,
