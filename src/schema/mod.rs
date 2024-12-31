@@ -82,6 +82,8 @@ struct S3ImageSource {
 }
 
 impl S3ImageSource {
+    // TODO ::from_row can be used "correctly" but on null rows, so use try_get and propogate
+    // errors instead of panicing
     fn from_row(row: &tokio_postgres::Row) -> Self {
         Self {
             bucket: row.get("bucket"),
@@ -104,9 +106,9 @@ impl Image {
             .query(
                 "
                 SELECT a.bucket, a.object
-                FROM images
-                LEFT JOIN s3_image_sources AS a ON images.id = a.image_id
-                WHERE images.id = $1
+                FROM s3_image_sources AS a
+                LEFT JOIN images ON images.id = a.image_id
+                WHERE a.image_id = $1
                 ",
                 &[&self.0],
             )
