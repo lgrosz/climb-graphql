@@ -1,8 +1,13 @@
-use async_graphql::{Context, Object, Result};
+use async_graphql::{Context, Object, Result, Union};
 
 use crate::schema::climb::Climb;
 use crate::schema::formation::Formation;
 use crate::AppData;
+
+#[derive(Union)]
+enum AreaParent {
+    Area(Area),
+}
 
 pub struct Area(pub i32);
 
@@ -24,7 +29,7 @@ impl Area {
         Ok(value.map(|name| name.to_string()))
     }
 
-    async fn area<'a>(&self, ctx: &Context<'a>) -> Result<Option<Area>> {
+    async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<AreaParent>> {
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -40,7 +45,7 @@ impl Area {
             None
         };
 
-        Ok(value.map(Area))
+        Ok(value.map(Area).map(AreaParent::Area))
     }
 
     async fn areas<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Area>> {
