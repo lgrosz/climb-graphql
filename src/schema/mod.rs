@@ -168,6 +168,51 @@ impl QueryRoot {
         Ok(areas)
     }
 
+    async fn areas_by_parent<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
+    ) -> Result<Vec<Area>> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        let result = match parent {
+            Some(AreaParentInput::Area(area_id)) => {
+                client
+                    .query(
+                        "
+                        SELECT a.id
+                        FROM areas AS a
+                        INNER JOIN area_closures AS sa ON a.id = sa.area_id
+                        WHERE sa.super_area_id = $1
+                        ",
+                        &[&area_id],
+                    )
+                    .await?
+            }
+            None => {
+                client
+                    .query(
+                        "
+                        SELECT a.id
+                        FROM areas AS a
+                        LEFT JOIN area_closures AS sa ON a.id = sa.area_id
+                        WHERE sa.super_area_id IS NULL
+                        ",
+                        &[],
+                    )
+                    .await?
+            }
+        };
+
+        let areas = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Area))
+            .collect::<Result<Vec<Area>, _>>()?;
+
+        Ok(areas)
+    }
+
     async fn area<'a>(
         &self,
         ctx: &Context<'a>,
