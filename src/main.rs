@@ -63,9 +63,12 @@ async fn main() {
     let s3_images_pool = cfg.images.create_pool().expect("Could not create images pool");
 
     let mut s3_pools = HashMap::new();
-    s3_pools.insert(cfg.images.bucket, s3_images_pool)
-        .ok_or("Multiple s3 pools have the same bucket")
-        .expect("All s3 pool configurations should point to different buckets");
+    s3_pools
+        .insert(cfg.images.bucket, s3_images_pool)
+        .map_or_else(
+            || {},
+            |_| panic!("Multiple S3 pools have the same bucket"),
+        );
 
     let context = AppData { pg_pool, s3_pools };
     let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
