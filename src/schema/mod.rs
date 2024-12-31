@@ -187,53 +187,13 @@ impl QueryRoot {
     async fn climbs<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Parent area id")] area_id: Option<i32>,
-        #[graphql(desc = "Parent formation id")] formation_id: Option<i32>,
     ) -> Result<Vec<Climb>> {
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
-        let result = if let Some(area_id) = area_id {
-            // If `area_id` is provided, find climbs with this specific parent
-            client
-                .query(
-                    "
-                    SELECT c.id
-                    FROM climbs AS c
-                    INNER JOIN climb_super_area_closures AS sa ON c.id = sa.climb_id
-                    WHERE sa.super_area_id = $1
-                    ",
-                    &[&area_id],
-                )
-                .await?
-        } else if let Some(formation_id) = formation_id {
-            // If `formation_id` is provided, find climbs with this specific parent
-            client
-                .query(
-                    "
-                    SELECT c.id
-                    FROM climbs AS c
-                    INNER JOIN climb_super_formation_closures AS sf ON c.id = sf.climb_id
-                    WHERE sf.super_formation_id = $1
-                    ",
-                    &[&formation_id],
-                )
-                .await?
-        } else {
-            // If `area_id` and `formation_id` are None, find climbs with no parent (top-level climbs)
-            client
-                .query(
-                    "
-                    SELECT c.id
-                    FROM climbs AS c
-                    LEFT JOIN climb_super_area_closures AS sa ON c.id = sa.climb_id
-                    LEFT JOIN climb_super_formation_closures AS sf ON c.id = sf.climb_id
-                    WHERE sa.super_area_id IS NULL AND sf.super_formation_id IS NULL
-                    ",
-                    &[],
-                )
-                .await?
-        };
+        let result = client
+            .query("SELECT climbs.id FROM climbs", &[])
+            .await?;
 
         let climbs = result
             .into_iter()
