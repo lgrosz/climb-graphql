@@ -127,38 +127,13 @@ impl QueryRoot {
     async fn areas<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Parent area id")] area_id: Option<i32>,
     ) -> Result<Vec<Area>> {
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
-        let result = if let Some(area_id) = area_id {
-            // If `area_id` is provided, find areas with this specific parent
-            client
-                .query(
-                    "
-                    SELECT a.id
-                    FROM areas AS a
-                    INNER JOIN area_closures AS sa ON a.id = sa.area_id
-                    WHERE sa.super_area_id = $1
-                    ",
-                    &[&area_id],
-                )
-                .await?
-        } else {
-            // If `area_id` is None, find areas with no parent (top-level areas)
-            client
-                .query(
-                    "
-                    SELECT a.id
-                    FROM areas AS a
-                    LEFT JOIN area_closures AS sa ON a.id = sa.area_id
-                    WHERE sa.super_area_id IS NULL
-                    ",
-                    &[],
-                )
-                .await?
-        };
+        let result = client
+            .query("SELECT areas.id FROM areas", &[])
+            .await?;
 
         let areas = result
             .into_iter()
