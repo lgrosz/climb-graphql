@@ -243,6 +243,65 @@ impl QueryRoot {
         Ok(climbs)
     }
 
+    async fn climbs_by_parent<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
+    ) -> Result<Vec<Climb>> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        let result = match parent {
+            Some(ClimbParentInput::Area(area_id)) => {
+                client
+                    .query(
+                        "
+                        SELECT c.id
+                        FROM climbs AS c
+                        INNER JOIN climb_super_area_closures AS sa ON c.id = sa.climb_id
+                        WHERE sa.super_area_id = $1
+                        ",
+                        &[&area_id],
+                    )
+                    .await?
+            }
+            Some(ClimbParentInput::Formation(formation_id)) => {
+                client
+                    .query(
+                        "
+                        SELECT c.id
+                        FROM climbs AS c
+                        INNER JOIN climb_super_formation_closures AS sf ON c.id = sf.climb_id
+                        WHERE sf.super_formation_id = $1
+                        ",
+                        &[&formation_id],
+                    )
+                    .await?
+            }
+            None => {
+                client
+                    .query(
+                        "
+                        SELECT c.id
+                        FROM climbs AS c
+                        LEFT JOIN climb_super_area_closures AS sa ON c.id = sa.climb_id
+                        LEFT JOIN climb_super_formation_closures AS sf ON c.id = sf.climb_id
+                        WHERE sa.super_area_id IS NULL AND sf.super_formation_id IS NULL
+                        ",
+                        &[],
+                    )
+                    .await?
+            }
+        };
+
+        let climbs = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Climb))
+            .collect::<Result<Vec<Climb>, _>>()?;
+
+        Ok(climbs)
+    }
+
     async fn climb<'a>(
         &self,
         ctx: &Context<'a>,
