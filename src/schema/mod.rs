@@ -281,53 +281,13 @@ impl QueryRoot {
     async fn formations<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Parent area id")] area_id: Option<i32>,
-        #[graphql(desc = "Parent formation id")] formation_id: Option<i32>,
     ) -> Result<Vec<Formation>> {
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
-        let result = if let Some(area_id) = area_id {
-            // If `area_id` is provided, find formations with this specific parent
-            client
-                .query(
-                    "
-                    SELECT f.id
-                    FROM formations AS f
-                    INNER JOIN formation_super_area_closures AS sa ON f.id = sa.formation_id
-                    WHERE sa.super_area_id = $1
-                    ",
-                    &[&area_id],
-                )
-                .await?
-        } else if let Some(formation_id) = formation_id {
-            // If `formation_id` is provided, find formations with this specific parent
-            client
-                .query(
-                    "
-                    SELECT f.id
-                    FROM formations AS f
-                    INNER JOIN formation_super_formation_closures AS sf ON f.id = sf.formation_id
-                    WHERE sf.super_formation_id = $1
-                    ",
-                    &[&formation_id],
-                )
-                .await?
-        } else {
-            // If `area_id` and `formation_id` are None, find formations with no parent (top-level formations)
-            client
-                .query(
-                    "
-                    SELECT f.id
-                    FROM formations AS f
-                    LEFT JOIN formation_super_area_closures AS sa ON f.id = sa.formation_id
-                    LEFT JOIN formation_super_formation_closures AS sf ON f.id = sf.formation_id
-                    WHERE sa.super_area_id IS NULL AND sf.super_formation_id IS NULL
-                    ",
-                    &[],
-                )
-                .await?
-        };
+        let result = client
+            .query("SELECT formations.id FROM formations", &[])
+            .await?;
 
         let formations = result
             .into_iter()
