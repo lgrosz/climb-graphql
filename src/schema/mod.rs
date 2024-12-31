@@ -430,6 +430,11 @@ impl QueryRoot {
 }
 
 #[derive(OneofObject)]
+enum AreaParentInput {
+    Area(i32),
+}
+
+#[derive(OneofObject)]
 enum ClimbParentInput {
     Area(i32),
     Formation(i32),
@@ -502,28 +507,28 @@ impl MutationRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Area id")] id: i32,
-        #[graphql(desc = "Super area id")] super_area_id: Option<i32>,
+        #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
     ) -> Result<Area> {
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
-        if let Some(super_area_id) = super_area_id {
-            client
-                .execute(
-                    "
-                    INSERT INTO area_closures (area_id, super_area_id)
-                    VALUES ($1, $2)
-                    ON CONFLICT (area_id)
-                    DO UPDATE SET
-                    super_area_id = EXCLUDED.super_area_id
-                    ",
-                    &[&id, &super_area_id],
-                )
-                .await?;
-        } else {
-            client
-                .execute("DELETE FROM area_closures WHERE area_id = $1", &[&id])
-                .await?;
+        if let Some(parent) = parent {
+            match parent {
+                AreaParentInput::Area(area_id) => {
+                    client
+                        .execute(
+                            "
+                            INSERT INTO area_closures (area_id, super_area_id)
+                            VALUES ($1, $2)
+                            ON CONFLICT (area_id)
+                            DO UPDATE SET
+                            super_area_id = EXCLUDED.super_area_id
+                            ",
+                            &[&id, &area_id],
+                        )
+                        .await?;
+                }
+            }
         }
 
         Ok(Area(id))
