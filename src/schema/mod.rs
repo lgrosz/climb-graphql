@@ -530,6 +530,26 @@ impl MutationRoot {
         Ok(Area(area_id))
     }
 
+    async fn describe_area<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Area id")] id: i32,
+        #[graphql(desc = "Area description")] description: Option<String>,
+    ) -> Result<Area> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        let area_id = client
+            .query_one(
+                "UPDATE areas SET description = $1 WHERE id = $2 RETURNING id",
+                &[&description, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Area(area_id))
+    }
+
     async fn move_area<'a>(
         &self,
         ctx: &Context<'a>,
@@ -559,6 +579,26 @@ impl MutationRoot {
         }
 
         Ok(Area(id))
+    }
+
+    async fn describe_formation<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Formation description")] description: Option<String>,
+    ) -> Result<Formation> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        let formation_id = client
+            .query_one(
+                "UPDATE formations SET description = $1 WHERE id = $2 RETURNING id",
+                &[&description, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Formation(formation_id))
     }
 
     async fn remove_area<'a>(
@@ -640,6 +680,26 @@ impl MutationRoot {
             .get::<_, i32>(0);
 
         Ok(Climb(id))
+    }
+
+    async fn describe_climb<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climb id")] id: i32,
+        #[graphql(desc = "Climb description")] description: Option<String>,
+    ) -> Result<Climb> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        let climb_id = client
+            .query_one(
+                "UPDATE climbs SET description = $1 WHERE id = $2 RETURNING id",
+                &[&description, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Climb(climb_id))
     }
 
     async fn move_climb<'a>(
