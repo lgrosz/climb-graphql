@@ -474,7 +474,7 @@ impl MutationRoot {
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Area name")] name: Option<String>,
-        #[graphql(desc = "Super area id")] super_area_id: Option<i32>,
+        #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
     ) -> Result<Area> {
         let data = ctx.data::<AppData>()?;
         let mut client = data.pg_pool.get().await?;
@@ -489,13 +489,20 @@ impl MutationRoot {
             .await?
             .get::<_, i32>(0);
 
-        if let Some(super_area_id) = super_area_id {
-            transaction
-                .execute(
-                    "INSERT INTO area_closures (area_id, super_area_id) VALUES ($1, $2)",
-                    &[&area_id, &super_area_id],
-                )
-                .await?;
+        if let Some(parent) = parent {
+            match parent {
+                AreaParentInput::Area(parent_id) => {
+                    transaction
+                        .execute(
+                            "
+                            INSERT INTO area_closures (area_id, super_area_id)
+                            VALUES ($1, $2)
+                            ",
+                            &[&area_id, &parent_id],
+                        )
+                        .await?;
+                }
+            }
         }
 
         transaction.commit().await?;
