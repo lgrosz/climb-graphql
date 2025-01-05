@@ -37,6 +37,18 @@ impl Formation {
         Ok(value.map(|name| name.to_string()))
     }
 
+    async fn description<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
+        let data = ctx.data::<AppData>()?;
+        let client = data.pg_pool.get().await?;
+
+        let result = client
+            .query_one("SELECT description FROM formations WHERE id = $1", &[&self.0])
+            .await?;
+        let value: Option<&str> = result.try_get(0)?;
+
+        Ok(value.map(|description| description.to_string()))
+    }
+
     async fn location<'a>(&self, ctx: &Context<'a>) -> Result<Option<Coordinate>> {
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
