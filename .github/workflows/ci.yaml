@@ -19,7 +19,6 @@ jobs:
         toolchain:
         - stable
         - beta
-        - nightly
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
