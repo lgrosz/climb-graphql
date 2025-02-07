@@ -984,7 +984,7 @@ impl MutationRoot {
                 FormationParentInput::Area(area_id) => {
                     transaction
                         .execute(
-                            "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
+                            "DELETE FROM formation_super_formation_closures WHERE formation_id = $1",
                             &[&id],
                         )
                         .await?;
