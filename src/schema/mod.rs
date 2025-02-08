@@ -576,6 +576,13 @@ impl MutationRoot {
                         .await?;
                 }
             }
+        } else {
+            client
+                .execute(
+                    "DELETE FROM area_closures WHERE area_id = $1",
+                    &[&id],
+                )
+                .await?;
         }
 
         Ok(Area(id))
@@ -759,6 +766,20 @@ impl MutationRoot {
                         .await?;
                 }
             }
+        } else {
+            transaction
+                .execute(
+                    "DELETE FROM climb_super_formation_closures WHERE climb_id = $1",
+                    &[&id],
+                )
+                .await?;
+
+            transaction
+                .execute(
+                    "DELETE FROM climb_super_area_closures WHERE climb_id = $1",
+                    &[&id],
+                )
+                .await?;
         }
 
         transaction.commit().await?;
@@ -1025,6 +1046,20 @@ impl MutationRoot {
                         .await?;
                 }
             }
+        } else {
+            transaction
+                .execute(
+                    "DELETE FROM formation_super_formation_closures WHERE formation_id = $1",
+                    &[&id],
+                )
+                .await?;
+
+            transaction
+                .execute(
+                    "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
+                    &[&id],
+                )
+                .await?;
         }
         transaction.commit().await?;
 
