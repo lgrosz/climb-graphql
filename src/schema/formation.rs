@@ -1,4 +1,4 @@
-use async_graphql::{Context, InputObject, Object, Result, SimpleObject, Union};
+use async_graphql::{Context, InputObject, Object, Result, SimpleObject, Union, ID};
 
 use crate::schema::area::Area;
 use crate::schema::climb::Climb;
@@ -21,8 +21,8 @@ pub struct Formation(pub i32);
 
 #[Object]
 impl Formation {
-    async fn id(&self) -> &i32 {
-        &self.0
+    async fn id(&self) -> ID {
+        self.0.into()
     }
 
     async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {

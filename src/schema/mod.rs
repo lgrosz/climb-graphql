@@ -1,4 +1,4 @@
-use async_graphql::{Context, Enum, InputObject, Object, OneofObject, Result, SimpleObject, Union};
+use async_graphql::{Context, Enum, InputObject, Object, OneofObject, Result, SimpleObject, Union, ID};
 
 use area::Area;
 use climb::Climb;
@@ -94,8 +94,8 @@ impl S3ImageSource {
 
 #[Object]
 impl Image {
-    async fn id(&self) -> &i32 {
-        &self.0
+    async fn id(&self) -> ID {
+        self.0.into()
     }
 
     async fn sources<'a>(&self, ctx: &Context<'a>) -> Result<Vec<ImageSource>> {
@@ -191,8 +191,9 @@ impl QueryRoot {
     async fn area<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Area id")] id: i32,
+        #[graphql(desc = "Area id")] id: ID,
     ) -> Result<Area> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -285,8 +286,9 @@ impl QueryRoot {
     async fn climb<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Climb id")] id: i32,
+        #[graphql(desc = "Climb id")] id: ID,
     ) -> Result<Climb> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -379,8 +381,9 @@ impl QueryRoot {
     async fn formation<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Formation id")] id: ID,
     ) -> Result<Formation> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -395,8 +398,9 @@ impl QueryRoot {
     async fn image<'a>(
         &self,
         ctx: &Context<'a>,
-        id: i32,
+        id: ID,
     ) -> Result<Image> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -411,9 +415,10 @@ impl QueryRoot {
     async fn image_source_url<'a>(
         &self,
         ctx: &Context<'a>,
-        id: i32,
+        id: ID,
         #[graphql(validator(min_length = 1))] name: String,
     ) -> Result<String> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -513,9 +518,10 @@ impl MutationRoot {
     async fn rename_area<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Area id")] id: i32,
+        #[graphql(desc = "Area id")] id: ID,
         #[graphql(desc = "Area name")] name: Option<String>,
     ) -> Result<Area> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -533,9 +539,10 @@ impl MutationRoot {
     async fn describe_area<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Area id")] id: i32,
+        #[graphql(desc = "Area id")] id: ID,
         #[graphql(desc = "Area description")] description: Option<String>,
     ) -> Result<Area> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -553,9 +560,10 @@ impl MutationRoot {
     async fn move_area<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Area id")] id: i32,
+        #[graphql(desc = "Area id")] id: ID,
         #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
     ) -> Result<Area> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -591,9 +599,10 @@ impl MutationRoot {
     async fn describe_formation<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Formation id")] id: ID,
         #[graphql(desc = "Formation description")] description: Option<String>,
     ) -> Result<Formation> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -611,8 +620,9 @@ impl MutationRoot {
     async fn remove_area<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Area id")] id: i32,
+        #[graphql(desc = "Area id")] id: ID,
     ) -> Result<Area> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -672,9 +682,10 @@ impl MutationRoot {
     async fn rename_climb<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Climb id")] id: i32,
+        #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Climb name")] name: Option<String>,
     ) -> Result<Climb> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -692,9 +703,10 @@ impl MutationRoot {
     async fn describe_climb<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Climb id")] id: i32,
+        #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Climb description")] description: Option<String>,
     ) -> Result<Climb> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -712,9 +724,10 @@ impl MutationRoot {
     async fn move_climb<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Climb id")] id: i32,
+        #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Climb> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let mut client = data.pg_pool.get().await?;
 
@@ -790,10 +803,11 @@ impl MutationRoot {
     async fn grade_climb<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Climb id")] id: i32,
+        #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Grade")] grade: GradeInput,
         #[graphql(desc = "Operation")] operation: GradeOperation,
     ) -> Result<Climb> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -883,8 +897,9 @@ impl MutationRoot {
     async fn remove_climb<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Climb id")] id: i32,
+        #[graphql(desc = "Climb id")] id: ID,
     ) -> Result<Climb> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -949,9 +964,10 @@ impl MutationRoot {
     async fn rename_formation<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Formation id")] id: ID,
         #[graphql(desc = "Formation name")] name: Option<String>,
     ) -> Result<Formation> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -969,9 +985,10 @@ impl MutationRoot {
     async fn relocate_formation<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Formation id")] id: ID,
         #[graphql(desc = "Formation location")] location: Option<Coordinate>,
     ) -> Result<Formation> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
@@ -992,9 +1009,10 @@ impl MutationRoot {
     async fn move_formation<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Formation id")] id: ID,
         #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Formation> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let mut client = data.pg_pool.get().await?;
 
@@ -1069,8 +1087,9 @@ impl MutationRoot {
     async fn remove_formation<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "Formation id")] id: i32,
+        #[graphql(desc = "Formation id")] id: ID,
     ) -> Result<Formation> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
         let client = data.pg_pool.get().await?;
 
