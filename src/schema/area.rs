@@ -19,7 +19,12 @@ impl Area {
 
     async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query_one("SELECT name FROM areas WHERE id = $1", &[&self.0])
@@ -31,7 +36,12 @@ impl Area {
 
     async fn description<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query_one("SELECT description FROM areas WHERE id = $1", &[&self.0])
@@ -43,7 +53,12 @@ impl Area {
 
     async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<AreaParent>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query(
@@ -62,7 +77,12 @@ impl Area {
 
     async fn areas<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Area>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query(
@@ -80,7 +100,12 @@ impl Area {
 
     async fn formations<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Formation>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query(
@@ -98,7 +123,12 @@ impl Area {
 
     async fn climbs<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Climb>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query(
