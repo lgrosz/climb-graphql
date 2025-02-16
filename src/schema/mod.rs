@@ -1,65 +1,28 @@
-use async_graphql::{Context, Enum, InputObject, Object, OneofObject, Result, SimpleObject, Union, ID};
+use async_graphql::{Context, Enum, Object, OneofObject, Result, SimpleObject, Union, ID};
 
 use area::Area;
 use climb::Climb;
+use fontainebleau_grade::FontainebleauGrade;
 use formation::{Coordinate, Formation};
-use postgres_types::ToSql;
+use vermin_grade::VerminGrade;
+use yosemite_decimal_grade::YosemiteDecimalGrade;
 
 use crate::AppData;
 
 pub mod area;
 pub mod climb;
 pub mod formation;
+pub mod fontainebleau_grade;
+pub mod vermin_grade;
+pub mod yosemite_decimal_grade;
 
 pub struct QueryRoot;
 
-#[derive(InputObject)]
-struct VerminGradeInput {
-    pub value: u8,
-}
-
-#[derive(Enum, Clone, Copy, PartialEq, Eq, Debug, ToSql)]
-#[postgres(name = "font_letter")]
-enum FontainebleauLetterInput {
-    #[postgres(name = "A")]
-    A,
-    #[postgres(name = "B")]
-    B,
-    #[postgres(name = "C")]
-    C,
-}
-
-#[derive(InputObject)]
-struct FontainebleauGradeInput {
-    pub value: u8,
-    pub letter: Option<FontainebleauLetterInput>,
-    pub plus: bool,
-}
-
-#[derive(Enum, Clone, Copy, PartialEq, Eq, Debug, ToSql)]
-#[postgres(name = "yds_letter")]
-enum YosemiteDecimalLetterInput {
-    #[postgres(name = "a")]
-    A,
-    #[postgres(name = "b")]
-    B,
-    #[postgres(name = "c")]
-    C,
-    #[postgres(name = "d")]
-    D,
-}
-
-#[derive(InputObject)]
-struct YosemiteDecimalGradeInput {
-    pub value: u8,
-    pub letter: Option<YosemiteDecimalLetterInput>,
-}
-
 #[derive(OneofObject)]
 enum GradeInput {
-    Vermin(VerminGradeInput),
-    Fontainebleau(FontainebleauGradeInput),
-    YosemiteDecimal(YosemiteDecimalGradeInput),
+    Vermin(VerminGrade),
+    Fontainebleau(FontainebleauGrade),
+    YosemiteDecimal(YosemiteDecimalGrade),
 }
 
 #[derive(Enum, Clone, Copy, PartialEq, Eq)]
@@ -928,7 +891,7 @@ impl MutationRoot {
 
         match operation {
             GradeOperation::Add => match grade {
-                GradeInput::Vermin(VerminGradeInput { value }) => {
+                GradeInput::Vermin(VerminGrade(value)) => {
                     client
                         .execute(
                             "
@@ -939,8 +902,8 @@ impl MutationRoot {
                         )
                         .await?;
                 }
-                GradeInput::Fontainebleau(FontainebleauGradeInput {
-                    value,
+                GradeInput::Fontainebleau(FontainebleauGrade {
+                    number,
                     letter,
                     plus,
                 }) => {
@@ -950,35 +913,35 @@ impl MutationRoot {
                             INSERT INTO climb_font_grades (climb_id, value, letter, plus)
                             VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING
                             ",
-                            &[&id, &(value as i32), &letter, &plus],
+                            &[&id, &(number as i32), &letter, &plus],
                         )
                         .await?;
                 }
-                GradeInput::YosemiteDecimal(YosemiteDecimalGradeInput { value, letter }) => {
+                GradeInput::YosemiteDecimal(YosemiteDecimalGrade { grade, letter }) => {
                     client
                         .execute(
                             "INSERT INTO climb_yds_grades (climb_id, value, letter)
                             VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
                             ",
-                            &[&id, &(value as i32), &letter],
+                            &[&id, &(grade as i32), &letter],
                         )
                         .await?;
                 }
             },
             GradeOperation::Remove => match grade {
-                GradeInput::Vermin(VerminGradeInput { value }) => {
+                GradeInput::Vermin(VerminGrade(number)) => {
                     client
                         .execute(
                             "
                             DELETE FROM climb_verm_grades
                             WHERE climb_id = $1 AND value = $2
                             ",
-                            &[&id, &(value as i32)],
+                            &[&id, &(number as i32)],
                         )
                         .await?;
                 }
-                GradeInput::Fontainebleau(FontainebleauGradeInput {
-                    value,
+                GradeInput::Fontainebleau(FontainebleauGrade {
+                    number,
                     letter,
                     plus,
                 }) => {
@@ -988,18 +951,18 @@ impl MutationRoot {
                             DELETE FROM climb_font_grades
                             WHERE climb_id = $1 AND value = $2 AND (letter IS NOT DISTINCT FROM $3) AND plus = $4
                             ",
-                            &[&id, &(value as i32), &letter, &plus],
+                            &[&id, &(number as i32), &letter, &plus],
                         )
                         .await?;
                 }
-                GradeInput::YosemiteDecimal(YosemiteDecimalGradeInput { value, letter }) => {
+                GradeInput::YosemiteDecimal(YosemiteDecimalGrade { grade, letter }) => {
                     client
                         .execute(
                             "
                             DELETE FROM climb_yds_grades
                             WHERE climb_id = $1 AND value = $2 AND (letter IS NOT DISTINCT FROM $3)
                             ",
-                            &[&id, &(value as i32), &letter],
+                            &[&id, &(grade as i32), &letter],
                         )
                         .await?;
                 }

@@ -12,6 +12,7 @@ deadpool = "0.12.1"
 deadpool-postgres = { version = "0.14.0", features = ["serde"] }
 postgis = "0.9.0"
 postgres-types = { version = "0.2.8", features = ["derive"] }
+regex = "1.11.1"
 rust-s3 = "0.35.1"
 serde = "1.0.215"
 tokio = { version = "1.39.2", features = ["rt-multi-thread", "signal"] }
