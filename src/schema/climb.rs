@@ -1,9 +1,14 @@
-use async_graphql::{Context, Enum, Object, Result, SimpleObject, Union, ID};
-use postgres_types::FromSql;
+use async_graphql::{Context, Object, Result, SimpleObject, Union, ID};
 
 use crate::schema::area::Area;
 use crate::schema::formation::Formation;
+use crate::schema::fontainebleau_grade::FontainebleauGrade;
+use crate::schema::vermin_grade::VerminGrade;
+use crate::schema::yosemite_decimal_grade::YosemiteDecimalGrade;
 use crate::AppData;
+
+use super::fontainebleau_grade::FontainebleauLetter;
+use super::yosemite_decimal_grade::YosemiteDecimalLetter;
 
 #[derive(Union)]
 enum ClimbParent {
@@ -12,52 +17,25 @@ enum ClimbParent {
 }
 
 #[derive(SimpleObject)]
-struct VerminGrade {
-    pub value: u8,
-}
-
-#[derive(Enum, Clone, Copy, PartialEq, Eq, FromSql, Debug)]
-#[postgres(name = "font_letter")]
-enum FontainebleauLetter {
-    #[postgres(name = "A")]
-    A,
-    #[postgres(name = "B")]
-    B,
-    #[postgres(name = "C")]
-    C,
+struct ClimbFontainebleauGrade {
+    pub value: FontainebleauGrade,
 }
 
 #[derive(SimpleObject)]
-struct FontainebleauGrade {
-    pub value: u8,
-    pub letter: Option<FontainebleauLetter>,
-    pub plus: bool,
-}
-
-#[derive(Enum, Clone, Copy, PartialEq, Eq, FromSql)]
-#[postgres(name = "yds_letter")]
-enum YosemiteDecimalLetter {
-    #[postgres(name = "a")]
-    A,
-    #[postgres(name = "b")]
-    B,
-    #[postgres(name = "c")]
-    C,
-    #[postgres(name = "d")]
-    D,
+struct ClimbYosemiteDecimalGrade {
+    pub value: YosemiteDecimalGrade,
 }
 
 #[derive(SimpleObject)]
-struct YosemiteDecimalGrade {
-    pub value: u8,
-    pub letter: Option<YosemiteDecimalLetter>,
+struct ClimbVerminGrade {
+    pub value: VerminGrade,
 }
 
 #[derive(Union)]
-enum Grade {
-    Vermin(VerminGrade),
-    Fontainebleau(FontainebleauGrade),
-    YosemiteDecimal(YosemiteDecimalGrade),
+enum ClimbGrade {
+    Vermin(ClimbVerminGrade),
+    Fontainebleau(ClimbFontainebleauGrade),
+    YosemiteDecimal(ClimbYosemiteDecimalGrade),
 }
 
 pub struct Climb(pub i32);
@@ -102,7 +80,7 @@ impl Climb {
         Ok(value.map(|description| description.to_string()))
     }
 
-    async fn grades<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Grade>> {
+    async fn grades<'a>(&self, ctx: &Context<'a>) -> Result<Vec<ClimbGrade>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -111,7 +89,7 @@ impl Climb {
             }
         };
 
-        let verm_grades: Vec<Grade> = client
+        let verm_grades: Vec<ClimbGrade> = client
             .query(
                 "
                 SELECT value
@@ -126,12 +104,12 @@ impl Climb {
                 row.try_get::<_, i32>(0).ok().and_then(|v| {
                     u8::try_from(v)
                         .ok()
-                        .map(|value| Grade::Vermin(VerminGrade { value }))
+                        .map(|value| ClimbGrade::Vermin(ClimbVerminGrade { value: VerminGrade(value) } ))
                 })
             })
             .collect();
 
-        let font_grades: Vec<Grade> = client
+        let font_grades: Vec<ClimbGrade> = client
             .query(
                 "
                 SELECT value, letter, plus
@@ -143,7 +121,7 @@ impl Climb {
             .await?
             .into_iter()
             .filter_map(|row| {
-                let value: u8 = row
+                let number: u8 = row
                     .try_get::<_, i32>(0)
                     .ok()
                     .and_then(|v| u8::try_from(v).ok())?;
@@ -152,15 +130,17 @@ impl Climb {
 
                 let plus: bool = row.try_get(2).ok()?;
 
-                Some(Grade::Fontainebleau(FontainebleauGrade {
-                    value,
-                    letter,
-                    plus,
+                Some(ClimbGrade::Fontainebleau(ClimbFontainebleauGrade {
+                    value: FontainebleauGrade {
+                        number,
+                        letter,
+                        plus,
+                    },
                 }))
             })
             .collect();
 
-        let yds_grades: Vec<Grade> = client
+        let yds_grades: Vec<ClimbGrade> = client
             .query(
                 "
                 SELECT value, letter
@@ -172,7 +152,7 @@ impl Climb {
             .await?
             .into_iter()
             .filter_map(|row| {
-                let value: u8 = row
+                let grade: u8 = row
                     .try_get::<_, i32>(0)
                     .ok()
                     .and_then(|v| u8::try_from(v).ok())?;
@@ -180,9 +160,11 @@ impl Climb {
                 let letter: Option<YosemiteDecimalLetter> =
                     row.try_get::<_, Option<YosemiteDecimalLetter>>(1).ok()?;
 
-                Some(Grade::YosemiteDecimal(YosemiteDecimalGrade {
-                    value,
-                    letter,
+                Some(ClimbGrade::YosemiteDecimal(ClimbYosemiteDecimalGrade {
+                    value: YosemiteDecimalGrade {
+                        grade,
+                        letter
+                    },
                 }))
             })
             .collect();
