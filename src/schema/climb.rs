@@ -70,7 +70,12 @@ impl Climb {
 
     async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query_one("SELECT name FROM climbs WHERE id = $1", &[&self.0])
@@ -82,7 +87,12 @@ impl Climb {
 
     async fn description<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query_one("SELECT description FROM climbs WHERE id = $1", &[&self.0])
@@ -94,7 +104,12 @@ impl Climb {
 
     async fn grades<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Grade>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let verm_grades: Vec<Grade> = client
             .query(
@@ -181,7 +196,12 @@ impl Climb {
 
     async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<ClimbParent>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query_opt(

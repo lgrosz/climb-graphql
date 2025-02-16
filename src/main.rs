@@ -29,13 +29,13 @@ struct GraphQLConfig {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct Config {
-    pub pg: deadpool_postgres::Config,
+    pub pg: Option<deadpool_postgres::Config>,
     pub graphql: GraphQLConfig,
-    pub images: s3_client_manager::S3Config,
+    pub images: Option<s3_client_manager::S3Config>,
 }
 
 pub struct AppData {
-    pub pg_pool: deadpool_postgres::Pool,
+    pub pg_pool: Option<deadpool_postgres::Pool>,
     pub s3_pools: HashMap<String, s3_client_manager::Pool>,
 }
 
@@ -59,16 +59,35 @@ impl Config {
 async fn main() {
     let cfg = Config::from_env().expect("Environment was not enough to setup configuration");
 
-    let pg_pool = cfg.pg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Could not create PG pool");
-    let s3_images_pool = cfg.images.create_pool().expect("Could not create images pool");
+    let pg_pool = match &cfg.pg {
+        Some(pg_config) => {
+            match pg_config.create_pool(Some(Runtime::Tokio1), NoTls) {
+                Ok(pool) => Some(pool),
+                Err(err) => {
+                    eprintln!("Warning: Could not create PostgreSQL pool: {}", err);
+                    None
+                }
+            }
+        }
+        None => {
+            eprintln!("Warning: PostgreSQL configuration is missing");
+            None
+        }
+    };
 
     let mut s3_pools = HashMap::new();
-    s3_pools
-        .insert(cfg.images.bucket, s3_images_pool)
-        .map_or_else(
-            || {},
-            |_| panic!("Multiple S3 pools have the same bucket"),
-        );
+    if let Some(s3_config) = &cfg.images {
+        match s3_config.create_pool() {
+            Ok(pool) => {
+                s3_pools.insert(s3_config.bucket.clone(), pool);
+            }
+            Err(err) => {
+                eprintln!("Warning: Could not create S3 pool: {}", err);
+            }
+        }
+    } else {
+        eprintln!("Warning: S3 configuration is missing");
+    }
 
     let context = AppData { pg_pool, s3_pools };
     let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)

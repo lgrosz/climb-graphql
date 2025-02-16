@@ -100,7 +100,12 @@ impl Image {
 
     async fn sources<'a>(&self, ctx: &Context<'a>) -> Result<Vec<ImageSource>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query(
@@ -129,7 +134,12 @@ impl QueryRoot {
         ctx: &Context<'a>,
     ) -> Result<Vec<Area>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query("SELECT areas.id FROM areas", &[])
@@ -149,7 +159,12 @@ impl QueryRoot {
         #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
     ) -> Result<Vec<Area>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = match parent {
             Some(AreaParentInput::Area(area_id)) => {
@@ -195,7 +210,12 @@ impl QueryRoot {
     ) -> Result<Area> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         // Just check for existence
         client
@@ -210,7 +230,12 @@ impl QueryRoot {
         ctx: &Context<'a>,
     ) -> Result<Vec<Climb>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query("SELECT climbs.id FROM climbs", &[])
@@ -230,7 +255,12 @@ impl QueryRoot {
         #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Vec<Climb>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = match parent {
             Some(ClimbParentInput::Area(area_id)) => {
@@ -290,7 +320,12 @@ impl QueryRoot {
     ) -> Result<Climb> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         // Just check for existence
         client
@@ -305,7 +340,12 @@ impl QueryRoot {
         ctx: &Context<'a>,
     ) -> Result<Vec<Formation>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = client
             .query("SELECT formations.id FROM formations", &[])
@@ -325,7 +365,12 @@ impl QueryRoot {
         #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Vec<Formation>> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let result = match parent {
             Some(FormationParentInput::Area(area_id)) => {
@@ -385,7 +430,12 @@ impl QueryRoot {
     ) -> Result<Formation> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         // Just check for existence
         client
@@ -402,7 +452,12 @@ impl QueryRoot {
     ) -> Result<Image> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         // Just check for existence
         client
@@ -420,7 +475,12 @@ impl QueryRoot {
     ) -> Result<String> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         // Ensure id is valid
         client
@@ -482,7 +542,12 @@ impl MutationRoot {
         #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
     ) -> Result<Area> {
         let data = ctx.data::<AppData>()?;
-        let mut client = data.pg_pool.get().await?;
+        let mut client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let transaction = client.transaction().await?;
 
@@ -523,7 +588,12 @@ impl MutationRoot {
     ) -> Result<Area> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let area_id = client
             .query_one(
@@ -544,7 +614,12 @@ impl MutationRoot {
     ) -> Result<Area> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let area_id = client
             .query_one(
@@ -565,7 +640,12 @@ impl MutationRoot {
     ) -> Result<Area> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         if let Some(parent) = parent {
             match parent {
@@ -604,7 +684,12 @@ impl MutationRoot {
     ) -> Result<Formation> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let formation_id = client
             .query_one(
@@ -624,7 +709,12 @@ impl MutationRoot {
     ) -> Result<Area> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         client
             .execute("DELETE FROM areas WHERE id = $1", &[&id])
@@ -640,7 +730,12 @@ impl MutationRoot {
         #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Climb> {
         let data = ctx.data::<AppData>()?;
-        let mut client = data.pg_pool.get().await?;
+        let mut client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let transaction = client.transaction().await?;
 
@@ -687,7 +782,12 @@ impl MutationRoot {
     ) -> Result<Climb> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let id = client
             .query_one(
@@ -708,7 +808,12 @@ impl MutationRoot {
     ) -> Result<Climb> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let climb_id = client
             .query_one(
@@ -729,7 +834,12 @@ impl MutationRoot {
     ) -> Result<Climb> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let mut client = data.pg_pool.get().await?;
+        let mut client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let transaction = client.transaction().await?;
 
@@ -809,7 +919,12 @@ impl MutationRoot {
     ) -> Result<Climb> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         match operation {
             GradeOperation::Add => match grade {
@@ -901,7 +1016,12 @@ impl MutationRoot {
     ) -> Result<Climb> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         client
             .execute("DELETE FROM climbs WHERE id = $1", &[&id])
@@ -919,7 +1039,12 @@ impl MutationRoot {
         #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Formation> {
         let data = ctx.data::<AppData>()?;
-        let mut client = data.pg_pool.get().await?;
+        let mut client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let transaction = client.transaction().await?;
 
@@ -969,7 +1094,12 @@ impl MutationRoot {
     ) -> Result<Formation> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let id = client
             .query_one(
@@ -990,7 +1120,12 @@ impl MutationRoot {
     ) -> Result<Formation> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let point =
             location.map(|coord| postgis::ewkb::Point::new(coord.longitude, coord.latitude, None));
@@ -1014,7 +1149,12 @@ impl MutationRoot {
     ) -> Result<Formation> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let mut client = data.pg_pool.get().await?;
+        let mut client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let transaction = client.transaction().await?;
 
@@ -1091,7 +1231,12 @@ impl MutationRoot {
     ) -> Result<Formation> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         client
             .execute("DELETE FROM formations WHERE id = $1", &[&id])
@@ -1103,7 +1248,12 @@ impl MutationRoot {
 
     async fn create_image<'a>(&self, ctx: &Context<'a>) -> Result<Image> {
         let data = ctx.data::<AppData>()?;
-        let client = data.pg_pool.get().await?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
 
         let id = client
             .query_one("INSERT INTO images DEFAULT VALUES RETURNING id", &[])
