@@ -873,12 +873,11 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
-    async fn grade_climb<'a>(
+    async fn add_climb_grade<'a>(
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Grade")] grade: GradeInput,
-        #[graphql(desc = "Operation")] operation: GradeOperation,
     ) -> Result<Climb> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
         let data = ctx.data::<AppData>()?;
@@ -889,84 +888,101 @@ impl MutationRoot {
             }
         };
 
-        match operation {
-            GradeOperation::Add => match grade {
-                GradeInput::Vermin(VerminGrade(value)) => {
-                    client
-                        .execute(
-                            "
-                            INSERT INTO climb_verm_grades (climb_id, value)
-                            VALUES ($1, $2) ON CONFLICT DO NOTHING
-                            ",
-                            &[&id, &(value as i32)],
-                        )
-                        .await?;
+        match grade {
+            GradeInput::Vermin(VerminGrade(value)) => {
+                client
+                    .execute(
+                        "
+                        INSERT INTO climb_verm_grades (climb_id, value)
+                        VALUES ($1, $2) ON CONFLICT DO NOTHING
+                        ",
+                        &[&id, &(value as i32)],
+                    )
+                    .await?;
+            }
+            GradeInput::Fontainebleau(FontainebleauGrade {
+                number,
+                letter,
+                plus,
+            }) => {
+                client
+                    .execute(
+                        "
+                        INSERT INTO climb_font_grades (climb_id, value, letter, plus)
+                        VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING
+                        ",
+                        &[&id, &(number as i32), &letter, &plus],
+                    )
+                    .await?;
+            }
+            GradeInput::YosemiteDecimal(YosemiteDecimalGrade { grade, letter }) => {
+                client
+                    .execute(
+                        "INSERT INTO climb_yds_grades (climb_id, value, letter)
+                        VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
+                        ",
+                        &[&id, &(grade as i32), &letter],
+                    )
+                    .await?;
+            }
+        }
+
+        Ok(Climb(id))
+    }
+
+    async fn remove_climb_grade<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climb id")] id: ID,
+        #[graphql(desc = "Grade")] grade: GradeInput,
+    ) -> Result<Climb> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        match grade {
+            GradeInput::Vermin(VerminGrade(number)) => {
+                client
+                    .execute(
+                        "
+                        DELETE FROM climb_verm_grades
+                        WHERE climb_id = $1 AND value = $2
+                        ",
+                        &[&id, &(number as i32)],
+                    )
+                    .await?;
                 }
-                GradeInput::Fontainebleau(FontainebleauGrade {
-                    number,
-                    letter,
-                    plus,
-                }) => {
-                    client
-                        .execute(
-                            "
-                            INSERT INTO climb_font_grades (climb_id, value, letter, plus)
-                            VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING
-                            ",
-                            &[&id, &(number as i32), &letter, &plus],
-                        )
-                        .await?;
+            GradeInput::Fontainebleau(FontainebleauGrade {
+                number,
+                letter,
+                plus,
+            }) => {
+                client
+                    .execute(
+                        "
+                        DELETE FROM climb_font_grades
+                        WHERE climb_id = $1 AND value = $2 AND (letter IS NOT DISTINCT FROM $3) AND plus = $4
+                        ",
+                        &[&id, &(number as i32), &letter, &plus],
+                    )
+                    .await?;
                 }
-                GradeInput::YosemiteDecimal(YosemiteDecimalGrade { grade, letter }) => {
-                    client
-                        .execute(
-                            "INSERT INTO climb_yds_grades (climb_id, value, letter)
-                            VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
-                            ",
-                            &[&id, &(grade as i32), &letter],
-                        )
-                        .await?;
+            GradeInput::YosemiteDecimal(YosemiteDecimalGrade { grade, letter }) => {
+                client
+                    .execute(
+                        "
+                        DELETE FROM climb_yds_grades
+                        WHERE climb_id = $1 AND value = $2 AND (letter IS NOT DISTINCT FROM $3)
+                        ",
+                        &[&id, &(grade as i32), &letter],
+                    )
+                    .await?;
                 }
-            },
-            GradeOperation::Remove => match grade {
-                GradeInput::Vermin(VerminGrade(number)) => {
-                    client
-                        .execute(
-                            "
-                            DELETE FROM climb_verm_grades
-                            WHERE climb_id = $1 AND value = $2
-                            ",
-                            &[&id, &(number as i32)],
-                        )
-                        .await?;
-                }
-                GradeInput::Fontainebleau(FontainebleauGrade {
-                    number,
-                    letter,
-                    plus,
-                }) => {
-                    client
-                        .execute(
-                            "
-                            DELETE FROM climb_font_grades
-                            WHERE climb_id = $1 AND value = $2 AND (letter IS NOT DISTINCT FROM $3) AND plus = $4
-                            ",
-                            &[&id, &(number as i32), &letter, &plus],
-                        )
-                        .await?;
-                }
-                GradeInput::YosemiteDecimal(YosemiteDecimalGrade { grade, letter }) => {
-                    client
-                        .execute(
-                            "
-                            DELETE FROM climb_yds_grades
-                            WHERE climb_id = $1 AND value = $2 AND (letter IS NOT DISTINCT FROM $3)
-                            ",
-                            &[&id, &(grade as i32), &letter],
-                        )
-                        .await?;
-                }
-            },
         }
 
         Ok(Climb(id))
