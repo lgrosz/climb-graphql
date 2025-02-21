@@ -29,6 +29,7 @@ impl ScalarType for FontainebleauGrade {
                 let number = captures.get(1).unwrap().as_str().parse::<u8>().unwrap();
 
                 let letter = match captures.get(2).map(|m| m.as_str()) {
+                    Some(_) if number < 6 => return Err(InputValueError::custom("Grades 5 and below must not have A, B, or C")),
                     Some("A") | Some("a") => Some(FontainebleauLetter::A),
                     Some("B") | Some("b") => Some(FontainebleauLetter::B),
                     Some("C") | Some("c") => Some(FontainebleauLetter::C),
