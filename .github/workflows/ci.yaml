@@ -29,3 +29,5 @@ jobs:
         toolchain: ${{ matrix.toolchain }}
     - name: Build validation
       run: cargo build
+    - name: Run unit tests
+      run: cargo test
