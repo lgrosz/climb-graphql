@@ -1,23 +1,39 @@
+use std::str::FromStr;
+
 use async_graphql::{Scalar, ScalarType, Value, InputValueError, InputValueResult};
 use regex::Regex;
 
 #[derive(Clone, Debug)]
 pub struct VerminGrade(pub u8);
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseVerminGradeError;
+
+impl FromStr for VerminGrade {
+    type Err = ParseVerminGradeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let re = Regex::new(r"^(v|V)?([0-9]+)$").unwrap();
+        if let Some(captures) = re.captures(s) {
+            if let Some(grade_match) = captures.get(2) {
+                if let Ok(grade) = grade_match.as_str().parse::<u8>() {
+                    return Ok(VerminGrade(grade));
+                }
+            }
+        }
+
+        Err(ParseVerminGradeError)
+    }
+}
+
 #[Scalar]
 impl ScalarType for VerminGrade {
     fn parse(value: Value) -> InputValueResult<Self> {
         if let Value::String(s) = &value {
-            let re = Regex::new(r"^(v|V)?([0-9]+)$").unwrap();
-            if let Some(captures) = re.captures(s) {
-                if let Some(grade_match) = captures.get(2) {
-                    if let Ok(grade) = grade_match.as_str().parse::<u8>() {
-                        return Ok(VerminGrade(grade));
-                    }
-                }
-            }
+            s.parse::<VerminGrade>().map_err(|_| InputValueError::custom("Invalid format"))
+        } else {
+            Err(InputValueError::custom("Expected a string"))
         }
-        Err(InputValueError::custom("Invalid format"))
     }
 
     fn to_value(&self) -> Value {

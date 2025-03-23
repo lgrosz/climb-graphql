@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use async_graphql::{Scalar, ScalarType, Value, InputValueError, InputValueResult};
 use postgres_types::{FromSql, ToSql};
 use regex::Regex;
@@ -20,29 +22,43 @@ pub enum FontainebleauLetter {
     C,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseFontainebleauGradeError;
+
+impl FromStr for FontainebleauGrade {
+    type Err = ParseFontainebleauGradeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let re = Regex::new(r"^(?:[Ff](?:[Bb])?)?([1-9])([a-cA-C])?(\+)?$").unwrap();
+        if let Some(captures) = re.captures(s) {
+            let number = captures.get(1).unwrap().as_str().parse::<u8>().unwrap();
+
+            let letter = match captures.get(2).map(|m| m.as_str()) {
+                Some(_) if number < 6 => return Err(ParseFontainebleauGradeError),
+                Some("A") | Some("a") => Some(FontainebleauLetter::A),
+                Some("B") | Some("b") => Some(FontainebleauLetter::B),
+                Some("C") | Some("c") => Some(FontainebleauLetter::C),
+                None if number >= 6 => return Err(ParseFontainebleauGradeError),
+                _ => None,
+            };
+
+            let plus = captures.get(3).is_some();
+
+            return Ok(FontainebleauGrade { number, letter, plus });
+        }
+
+        Err(ParseFontainebleauGradeError)
+    }
+}
+
 #[Scalar]
 impl ScalarType for FontainebleauGrade {
     fn parse(value: Value) -> InputValueResult<Self> {
         if let Value::String(s) = &value {
-            let re = Regex::new(r"^(?:[Ff](?:[Bb])?)?([1-9])([a-cA-C])?(\+)?$").unwrap();
-            if let Some(captures) = re.captures(s) {
-                let number = captures.get(1).unwrap().as_str().parse::<u8>().unwrap();
-
-                let letter = match captures.get(2).map(|m| m.as_str()) {
-                    Some(_) if number < 6 => return Err(InputValueError::custom("Grades 5 and below must not have A, B, or C")),
-                    Some("A") | Some("a") => Some(FontainebleauLetter::A),
-                    Some("B") | Some("b") => Some(FontainebleauLetter::B),
-                    Some("C") | Some("c") => Some(FontainebleauLetter::C),
-                    None if number >= 6 => return Err(InputValueError::custom("Grades 6 and above require A, B, or C")),
-                    _ => None,
-                };
-
-                let plus = captures.get(3).is_some();
-
-                return Ok(FontainebleauGrade { number, letter, plus });
-            }
+            s.parse::<FontainebleauGrade>().map_err(|_| InputValueError::custom("Invalid format"))
+        } else {
+            Err(InputValueError::custom("Expected a string"))
         }
-        Err(InputValueError::custom("Invalid format"))
     }
 
     fn to_value(&self) -> Value {
