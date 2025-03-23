@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use async_graphql::{Context, Object, Result, SimpleObject, Union, ID};
 
 use crate::schema::area::Area;
@@ -6,9 +8,6 @@ use crate::schema::fontainebleau_grade::FontainebleauGrade;
 use crate::schema::vermin_grade::VerminGrade;
 use crate::schema::yosemite_decimal_grade::YosemiteDecimalGrade;
 use crate::AppData;
-
-use super::fontainebleau_grade::FontainebleauLetter;
-use super::yosemite_decimal_grade::YosemiteDecimalLetter;
 
 #[derive(Union)]
 enum ClimbParent {
@@ -36,6 +35,35 @@ enum ClimbGrade {
     Vermin(ClimbVerminGrade),
     Fontainebleau(ClimbFontainebleauGrade),
     YosemiteDecimal(ClimbYosemiteDecimalGrade),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ParseClimbGradeError;
+
+impl FromStr for ClimbGrade {
+    type Err = ParseClimbGradeError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        VerminGrade::from_str(s)
+            .map(|v| {
+                ClimbGrade::Vermin(ClimbVerminGrade { value: v })
+            })
+        .or_else(|_| {
+            FontainebleauGrade::from_str(s)
+                .map(|f| {
+                    ClimbGrade::Fontainebleau(ClimbFontainebleauGrade { value: f })
+                })
+        })
+        .or_else(|_| {
+            YosemiteDecimalGrade::from_str(s)
+                .map(|y| {
+                    ClimbGrade::YosemiteDecimal(ClimbYosemiteDecimalGrade { value: y })
+                })
+        })
+        .map_err(|_| {
+            ParseClimbGradeError
+        })
+    }
 }
 
 pub struct Climb(pub i32);
@@ -89,11 +117,13 @@ impl Climb {
             }
         };
 
-        let verm_grades: Vec<ClimbGrade> = client
+        let value: Vec<ClimbGrade> = client
+            // TODO since grade doesn't implement binary functions, we must request the text
+            // format, when grade _does_ implement these, the ::TEXT is not needed
             .query(
                 "
-                SELECT value
-                FROM climb_verm_grades
+                SELECT grade::TEXT
+                FROM climb_grades
                 WHERE climb_id = $1
                 ",
                 &[&self.0],
@@ -101,79 +131,15 @@ impl Climb {
             .await?
             .into_iter()
             .filter_map(|row| {
-                row.try_get::<_, i32>(0).ok().and_then(|v| {
-                    u8::try_from(v)
-                        .ok()
-                        .map(|value| ClimbGrade::Vermin(ClimbVerminGrade { value: VerminGrade(value) } ))
-                })
+                let grade_str: String = row.get(0);
+                match grade_str.parse::<ClimbGrade>() {
+                    Ok(grade) => Some(grade),
+                    Err(_) => None,
+                }
             })
             .collect();
 
-        let font_grades: Vec<ClimbGrade> = client
-            .query(
-                "
-                SELECT value, letter, plus
-                FROM climb_font_grades
-                WHERE climb_id = $1
-                ",
-                &[&self.0],
-            )
-            .await?
-            .into_iter()
-            .filter_map(|row| {
-                let number: u8 = row
-                    .try_get::<_, i32>(0)
-                    .ok()
-                    .and_then(|v| u8::try_from(v).ok())?;
-
-                let letter = row.try_get::<_, Option<FontainebleauLetter>>(1).ok()?;
-
-                let plus: bool = row.try_get(2).ok()?;
-
-                Some(ClimbGrade::Fontainebleau(ClimbFontainebleauGrade {
-                    value: FontainebleauGrade {
-                        number,
-                        letter,
-                        plus,
-                    },
-                }))
-            })
-            .collect();
-
-        let yds_grades: Vec<ClimbGrade> = client
-            .query(
-                "
-                SELECT value, letter
-                FROM climb_yds_grades
-                WHERE climb_id = $1
-                ",
-                &[&self.0],
-            )
-            .await?
-            .into_iter()
-            .filter_map(|row| {
-                let grade: u8 = row
-                    .try_get::<_, i32>(0)
-                    .ok()
-                    .and_then(|v| u8::try_from(v).ok())?;
-
-                let letter: Option<YosemiteDecimalLetter> =
-                    row.try_get::<_, Option<YosemiteDecimalLetter>>(1).ok()?;
-
-                Some(ClimbGrade::YosemiteDecimal(ClimbYosemiteDecimalGrade {
-                    value: YosemiteDecimalGrade {
-                        grade,
-                        letter
-                    },
-                }))
-            })
-            .collect();
-
-        let mut all_grades = verm_grades;
-        all_grades.extend(font_grades);
-        all_grades.extend(yds_grades);
-
-        Ok(all_grades)
+        Ok(value)
     }
 
     async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<ClimbParent>> {
