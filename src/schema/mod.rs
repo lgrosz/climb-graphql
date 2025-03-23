@@ -136,6 +136,71 @@ impl Image {
     }
 }
 
+struct Climber(pub i32);
+
+#[Object]
+impl Climber {
+    async fn id(&self) -> ID {
+        self.0.into()
+    }
+
+    async fn first_name<'a>(
+        &self,
+        ctx: &Context<'a>,
+    ) -> Result<String> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query_one(
+                "
+                SELECT first_name
+                FROM climbers
+                WHERE id = $1
+                ",
+                &[&self.0],
+            )
+            .await?;
+
+        let value: &str = result.try_get(0)?;
+
+        Ok(value.to_string())
+    }
+
+    async fn last_name<'a>(
+        &self,
+        ctx: &Context<'a>,
+    ) -> Result<String> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query_one(
+                "
+                SELECT last_name
+                FROM climbers
+                WHERE id = $1
+                ",
+                &[&self.0],
+            )
+            .await?;
+
+        let value: &str = result.try_get(0)?;
+
+        Ok(value.to_string())
+    }
+}
+
 #[Object]
 impl QueryRoot {
     async fn areas<'a>(
@@ -342,6 +407,52 @@ impl QueryRoot {
             .await?;
 
         Ok(Climb(id))
+    }
+
+    async fn climbers<'a>(
+        &self,
+        ctx: &Context<'a>,
+    ) -> Result<Vec<Climber>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query("SELECT climbers.id FROM climbers", &[])
+            .await?;
+
+        let climbers = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Climber))
+            .collect::<Result<Vec<Climber>, _>>()?;
+
+        Ok(climbers)
+    }
+
+    async fn climber<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climber id")] id: ID,
+    ) -> Result<Climber> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        // Just check for existence
+        client
+            .query_one("SELECT 1 FROM climbers WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(Climber(id))
     }
 
     async fn formations<'a>(
