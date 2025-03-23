@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use async_graphql::{Scalar, ScalarType, Value, InputValueError, InputValueResult};
 use postgres_types::{FromSql, ToSql};
 use regex::Regex;
@@ -21,31 +23,45 @@ pub enum YosemiteDecimalLetter {
     D,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseYosemiteDecimalGradeError;
+
+impl FromStr for YosemiteDecimalGrade {
+    type Err = ParseYosemiteDecimalGradeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let re = Regex::new(r"^(5\.)?(\d{1,2})([abcd]?)$").unwrap();
+        if let Some(captures) = re.captures(s) {
+            let grade = captures.get(2).unwrap().as_str().parse::<u8>().unwrap();
+
+            if grade < 1 {
+                return Err(ParseYosemiteDecimalGradeError);
+            }
+
+            let letter = match captures.get(3).map(|m| m.as_str()) {
+                Some("a") if grade >= 10 => Some(YosemiteDecimalLetter::A),
+                Some("b") if grade >= 10 => Some(YosemiteDecimalLetter::B),
+                Some("c") if grade >= 10 => Some(YosemiteDecimalLetter::C),
+                Some("d") if grade >= 10 => Some(YosemiteDecimalLetter::D),
+                Some("") if grade < 10 => None,
+                _ => return Err(ParseYosemiteDecimalGradeError),
+            };
+
+            return Ok(YosemiteDecimalGrade { grade, letter });
+        }
+
+        Err(ParseYosemiteDecimalGradeError)
+    }
+}
+
 #[Scalar]
 impl ScalarType for YosemiteDecimalGrade {
     fn parse(value: Value) -> InputValueResult<Self> {
         if let Value::String(s) = &value {
-            let re = Regex::new(r"^(5\.)?(\d{1,2})([abcd]?)$").unwrap();
-            if let Some(captures) = re.captures(s) {
-                let grade = captures.get(2).unwrap().as_str().parse::<u8>().unwrap();
-
-                if grade < 1 {
-                    return Err(InputValueError::custom("Grade must be at least 5.1"));
-                }
-
-                let letter = match captures.get(3).map(|m| m.as_str()) {
-                    Some("a") if grade >= 10 => Some(YosemiteDecimalLetter::A),
-                    Some("b") if grade >= 10 => Some(YosemiteDecimalLetter::B),
-                    Some("c") if grade >= 10 => Some(YosemiteDecimalLetter::C),
-                    Some("d") if grade >= 10 => Some(YosemiteDecimalLetter::D),
-                    Some("") if grade < 10 => None,
-                    _ => return Err(InputValueError::custom("Letters a-d are must, and only, be used for 5.10 and above")),
-                };
-
-                return Ok(YosemiteDecimalGrade { grade, letter });
-            }
+            s.parse::<YosemiteDecimalGrade>().map_err(|_| InputValueError::custom("Invalid format"))
+        } else {
+            Err(InputValueError::custom("Expected a string"))
         }
-        Err(InputValueError::custom("Invalid format"))
     }
 
     fn to_value(&self) -> Value {
