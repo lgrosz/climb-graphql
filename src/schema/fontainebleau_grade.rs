@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use async_graphql::{Scalar, ScalarType, Value, InputValueError, InputValueResult};
 use postgres_types::{FromSql, ToSql};
@@ -20,6 +20,26 @@ pub enum FontainebleauLetter {
     B,
     #[postgres(name = "C")]
     C,
+}
+
+impl Display for FontainebleauGrade {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut grade = format!("{}", self.number);
+
+        if let Some(letter) = &self.letter {
+            grade.push(match letter {
+                FontainebleauLetter::A => 'A',
+                FontainebleauLetter::B => 'B',
+                FontainebleauLetter::C => 'C',
+            });
+        }
+
+        if self.plus {
+            grade.push('+');
+        }
+
+        write!(f, "F{}", grade)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -62,18 +82,7 @@ impl ScalarType for FontainebleauGrade {
     }
 
     fn to_value(&self) -> Value {
-        let mut grade = format!("{}", self.number);
-        if let Some(letter) = &self.letter {
-            grade.push(match letter {
-                FontainebleauLetter::A => 'A',
-                FontainebleauLetter::B => 'B',
-                FontainebleauLetter::C => 'C',
-            });
-        }
-        if self.plus {
-            grade.push('+');
-        }
-        Value::String(format!("F{}", grade))
+        Value::String(self.to_string())
     }
 }
 

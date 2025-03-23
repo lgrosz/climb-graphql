@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use async_graphql::{Scalar, ScalarType, Value, InputValueError, InputValueResult};
 use postgres_types::{FromSql, ToSql};
@@ -21,6 +21,23 @@ pub enum YosemiteDecimalLetter {
     C,
     #[postgres(name = "d")]
     D,
+}
+
+impl Display for YosemiteDecimalGrade {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut grade_str = format!("5.{}", self.grade);
+
+        if let Some(letter) = &self.letter {
+            grade_str.push(match letter {
+                YosemiteDecimalLetter::A => 'a',
+                YosemiteDecimalLetter::B => 'b',
+                YosemiteDecimalLetter::C => 'c',
+                YosemiteDecimalLetter::D => 'd',
+            });
+        }
+
+        write!(f, "{}", grade_str)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -65,16 +82,7 @@ impl ScalarType for YosemiteDecimalGrade {
     }
 
     fn to_value(&self) -> Value {
-        let mut grade_str = format!("5.{}", self.grade);
-        if let Some(letter) = &self.letter {
-            grade_str.push(match letter {
-                YosemiteDecimalLetter::A => 'a',
-                YosemiteDecimalLetter::B => 'b',
-                YosemiteDecimalLetter::C => 'c',
-                YosemiteDecimalLetter::D => 'd',
-            });
-        }
-        Value::String(grade_str)
+        Value::String(self.to_string())
     }
 }
 

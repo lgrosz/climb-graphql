@@ -1,10 +1,16 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use async_graphql::{Scalar, ScalarType, Value, InputValueError, InputValueResult};
 use regex::Regex;
 
 #[derive(Clone, Debug)]
 pub struct VerminGrade(pub u8);
+
+impl Display for VerminGrade {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "V{}", self.0)
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseVerminGradeError;
@@ -37,7 +43,7 @@ impl ScalarType for VerminGrade {
     }
 
     fn to_value(&self) -> Value {
-        Value::String(format!("V{}", self.0))
+        Value::String(self.to_string())
     }
 }
 
