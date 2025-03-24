@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use async_graphql::{Context, Enum, Object, OneofObject, Result, SimpleObject, Union, ID};
+use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, Union, ID};
 
 use area::Area;
 use climb::Climb;
@@ -69,12 +69,6 @@ impl ToSql for GradeInput {
         }
         self.to_sql(ty, out)
     }
-}
-
-#[derive(Enum, Clone, Copy, PartialEq, Eq)]
-enum GradeOperation {
-    Add,
-    Remove,
 }
 
 struct Image(pub i32);
