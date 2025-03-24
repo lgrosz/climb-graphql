@@ -4,6 +4,7 @@ use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, Union, I
 
 use area::Area;
 use climb::Climb;
+use date_interval::DateInterval;
 use formation::{Coordinate, Formation};
 use grade::{Grade, GradeInput};
 use postgres_types::ToSql;
@@ -250,6 +251,35 @@ impl Ascent {
         let climber_id: i32 = result.try_get(0)?;
 
         Ok(Climber(climber_id))
+    }
+
+    async fn date_window<'a>(
+        &self,
+        ctx: &Context<'a>,
+    ) -> Result<Option<DateInterval>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            // TODO sfackler/rust-postgres-range#18
+            .query_one(
+                "
+                SELECT date_window::TEXT
+                FROM ascents
+                WHERE id = $1
+                ",
+                &[&self.0],
+            )
+            .await?;
+
+        let value: Option<DateInterval> = result.try_get(0)?;
+
+        Ok(value)
     }
 
     async fn grades<'a>(

@@ -1,7 +1,8 @@
-use std::{fmt::Display, ops::Bound, str::FromStr};
+use std::{error::Error, fmt::Display, ops::Bound, str::FromStr};
 
 use async_graphql::{InputValueError, InputValueResult, Scalar, ScalarType, Value};
 use chrono::{Duration, NaiveDate};
+use postgres_types::{accepts, FromSql};
 
 #[derive(Debug, PartialEq)]
 pub struct DateInterval(pub Bound<NaiveDate>, pub Bound<NaiveDate>);
@@ -33,6 +34,15 @@ impl Display for DateInterval {
 #[derive(Debug)]
 pub struct ParseDateIntervalError;
 
+impl Display for ParseDateIntervalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Failed to parse PostgreSQL DATERANGE")
+    }
+}
+
+impl Error for ParseDateIntervalError { }
+
+
 impl FromStr for DateInterval {
     type Err = ParseDateIntervalError;
 
@@ -56,6 +66,66 @@ impl FromStr for DateInterval {
         let end = parse_bound(parts[1])?;
 
         Ok(DateInterval(start, end))
+    }
+}
+
+impl<'a> FromSql<'a> for DateInterval {
+    fn from_sql(ty: &postgres_types::Type, raw: &'a [u8]) -> std::result::Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+        match *ty {
+            postgres_types::Type::DATE_RANGE => todo!(),
+            postgres_types::Type::TEXT => {
+                let text = std::str::from_utf8(raw)?;
+                let parsed = DateInterval::from_pg_range_text(text)?;
+                Ok(parsed)
+            },
+            _ => Err(format!("Unsupported type: {:?}", ty).into()),
+        }
+    }
+
+    accepts!(DATE_RANGE, TEXT);
+}
+
+impl DateInterval {
+    fn from_pg_range_text(s: &str) -> std::result::Result<Self, ParseDateIntervalError> {
+        let trimmed = s.trim();
+
+        if trimmed.len() < 3 || (!trimmed.starts_with(['[', '('])) || (!trimmed.ends_with([']', ')'])) {
+            return Err(ParseDateIntervalError);
+        }
+
+        let start_closed = trimmed.starts_with('[');
+        let end_closed = trimmed.ends_with(']');
+
+        let inner = &trimmed[1..trimmed.len() - 1];
+        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+
+        let start_bound = match parts.first() {
+            Some(date_str) if !date_str.is_empty() => {
+                let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                    .map_err(|_| ParseDateIntervalError)?;
+                if start_closed {
+                    Bound::Included(date)
+                } else {
+                    Bound::Excluded(date)
+                }
+            }
+            _ => Bound::Unbounded,
+        };
+
+        let end_bound = match parts.get(1).copied() {
+            Some(date_str) if !date_str.is_empty() => {
+                let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                    .map_err(|_| ParseDateIntervalError)?;
+                if end_closed {
+                    Bound::Included(date)
+                } else {
+                    Bound::Excluded(date)
+                }
+            }
+            _ => Bound::Unbounded,
+        };
+
+        Ok(DateInterval(start_bound, end_bound))
     }
 }
 
