@@ -805,6 +805,37 @@ impl MutationRoot {
         Ok(Area(area_id))
     }
 
+    async fn add_ascent<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climb ID")] climb_id: ID,
+        #[graphql(desc = "Climber ID")] climber_id: ID,
+    ) -> Result<Ascent> {
+        let climb_id: i32 = climb_id.0.parse().map_err(|_| "Invalid ID format")?;
+        let climber_id: i32 = climber_id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let ascent_id = client
+            .query_one(
+                "
+                INSERT INTO ascents (climb_id, climber_id)
+                VALUES ($1, $2)
+                RETURNING id
+                ",
+                &[&climb_id, &climber_id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Ascent(ascent_id))
+    }
+
     async fn rename_area<'a>(
         &self,
         ctx: &Context<'a>,
@@ -946,6 +977,27 @@ impl MutationRoot {
             .await?;
 
         Ok(Area(id))
+    }
+
+    async fn remove_ascent<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Ascent id")] id: ID,
+    ) -> Result<Ascent> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        client
+            .execute("DELETE FROM ascents WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(Ascent(id))
     }
 
     async fn add_climb<'a>(
