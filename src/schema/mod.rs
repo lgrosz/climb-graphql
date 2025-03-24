@@ -1216,6 +1216,34 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
+    async fn add_ascent_grade<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Ascent ID")] id: ID,
+        #[graphql(desc = "Grade")] grade: GradeInput,
+    ) -> Result<Ascent> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        client
+            .execute(
+                "
+                INSERT INTO ascent_grades (ascent_id, grade)
+                VALUES ($1, $2) ON CONFLICT DO NOTHING
+                ",
+                &[&id, &(grade)],
+            )
+            .await?;
+
+        Ok(Ascent(id))
+    }
+
     async fn add_climb_grade<'a>(
         &self,
         ctx: &Context<'a>,
@@ -1271,6 +1299,34 @@ impl MutationRoot {
             .get::<_, i32>(0);
 
         Ok(Climber(id))
+    }
+
+    async fn remove_ascent_grade<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Ascent ID")] id: ID,
+        #[graphql(desc = "Grade")] grade: GradeInput,
+    ) -> Result<Ascent> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        client
+            .execute(
+                "
+                DELETE FROM ascent_grades
+                WHERE ascent_id = $1 AND grade = $2
+                ",
+                &[&id, &(grade)],
+            )
+            .await?;
+
+        Ok(Ascent(id))
     }
 
     async fn remove_climb_grade<'a>(
