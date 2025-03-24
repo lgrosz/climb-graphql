@@ -1058,6 +1058,35 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
+    async fn add_climber<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "First name")] first_name: String,
+        #[graphql(desc = "Last name")] last_name: String,
+    ) -> Result<Climber> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let id = client
+            .query_one(
+                "
+                INSERT INTO climbers (first_name, last_name)
+                VALUES ($1, $2)
+                RETURNING id
+                ",
+                &[&first_name, &last_name],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Climber(id))
+    }
+
     async fn remove_climb_grade<'a>(
         &self,
         ctx: &Context<'a>,
@@ -1106,6 +1135,28 @@ impl MutationRoot {
 
         // TODO Does this make sense?
         Ok(Climb(id))
+    }
+
+    async fn remove_climber<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Climber id")] id: ID,
+    ) -> Result<Climber> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        client
+            .execute("DELETE FROM climbers WHERE id = $1", &[&id])
+            .await?;
+
+        // TODO Does this make sense?
+        Ok(Climber(id))
     }
 
     async fn add_formation<'a>(
