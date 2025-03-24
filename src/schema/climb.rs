@@ -1,69 +1,15 @@
-use std::str::FromStr;
-
-use async_graphql::{Context, Object, Result, SimpleObject, Union, ID};
+use async_graphql::{Context, Object, Result, Union, ID};
 
 use crate::schema::area::Area;
 use crate::schema::formation::Formation;
-use crate::schema::fontainebleau_grade::FontainebleauGrade;
-use crate::schema::vermin_grade::VerminGrade;
-use crate::schema::yosemite_decimal_grade::YosemiteDecimalGrade;
 use crate::AppData;
+
+use super::grade::Grade;
 
 #[derive(Union)]
 enum ClimbParent {
     Area(Area),
     Formation(Formation),
-}
-
-#[derive(SimpleObject)]
-struct ClimbFontainebleauGrade {
-    pub value: FontainebleauGrade,
-}
-
-#[derive(SimpleObject)]
-struct ClimbYosemiteDecimalGrade {
-    pub value: YosemiteDecimalGrade,
-}
-
-#[derive(SimpleObject)]
-struct ClimbVerminGrade {
-    pub value: VerminGrade,
-}
-
-#[derive(Union)]
-enum ClimbGrade {
-    Vermin(ClimbVerminGrade),
-    Fontainebleau(ClimbFontainebleauGrade),
-    YosemiteDecimal(ClimbYosemiteDecimalGrade),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-struct ParseClimbGradeError;
-
-impl FromStr for ClimbGrade {
-    type Err = ParseClimbGradeError;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        VerminGrade::from_str(s)
-            .map(|v| {
-                ClimbGrade::Vermin(ClimbVerminGrade { value: v })
-            })
-        .or_else(|_| {
-            FontainebleauGrade::from_str(s)
-                .map(|f| {
-                    ClimbGrade::Fontainebleau(ClimbFontainebleauGrade { value: f })
-                })
-        })
-        .or_else(|_| {
-            YosemiteDecimalGrade::from_str(s)
-                .map(|y| {
-                    ClimbGrade::YosemiteDecimal(ClimbYosemiteDecimalGrade { value: y })
-                })
-        })
-        .map_err(|_| {
-            ParseClimbGradeError
-        })
-    }
 }
 
 pub struct Climb(pub i32);
@@ -108,7 +54,7 @@ impl Climb {
         Ok(value.map(|description| description.to_string()))
     }
 
-    async fn grades<'a>(&self, ctx: &Context<'a>) -> Result<Vec<ClimbGrade>> {
+    async fn grades<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Grade>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -117,7 +63,7 @@ impl Climb {
             }
         };
 
-        let value: Vec<ClimbGrade> = client
+        let value: Vec<Grade> = client
             // TODO since grade doesn't implement binary functions, we must request the text
             // format, when grade _does_ implement these, the ::TEXT is not needed
             .query(
@@ -132,7 +78,7 @@ impl Climb {
             .into_iter()
             .filter_map(|row| {
                 let grade_str: String = row.get(0);
-                match grade_str.parse::<ClimbGrade>() {
+                match grade_str.parse::<Grade>() {
                     Ok(grade) => Some(grade),
                     Err(_) => None,
                 }

@@ -4,29 +4,21 @@ use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, Union, I
 
 use area::Area;
 use climb::Climb;
-use fontainebleau_grade::FontainebleauGrade;
 use formation::{Coordinate, Formation};
+use grade::GradeInput;
 use postgres_types::ToSql;
-use vermin_grade::VerminGrade;
-use yosemite_decimal_grade::YosemiteDecimalGrade;
 
 use crate::AppData;
 
 pub mod area;
 pub mod climb;
 pub mod formation;
+pub mod grade;
 pub mod fontainebleau_grade;
 pub mod vermin_grade;
 pub mod yosemite_decimal_grade;
 
 pub struct QueryRoot;
-
-#[derive(Debug, OneofObject)]
-enum GradeInput {
-    Vermin(VerminGrade),
-    Fontainebleau(FontainebleauGrade),
-    YosemiteDecimal(YosemiteDecimalGrade),
-}
 
 impl Display for GradeInput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
