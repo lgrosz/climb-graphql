@@ -5,7 +5,7 @@ use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, Union, I
 use area::Area;
 use climb::Climb;
 use formation::{Coordinate, Formation};
-use grade::GradeInput;
+use grade::{Grade, GradeInput};
 use postgres_types::ToSql;
 
 use crate::AppData;
@@ -249,6 +249,43 @@ impl Ascent {
         let climber_id: i32 = result.try_get(0)?;
 
         Ok(Climber(climber_id))
+    }
+
+    async fn grades<'a>(
+        &self,
+        ctx: &Context<'a>,
+    ) -> Result<Vec<Grade>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let value: Vec<Grade> = client
+            // TODO since grade doesn't implement binary functions, we must request the text
+            // format, when grade _does_ implement these, the ::TEXT is not needed
+            .query(
+                "
+                SELECT grade::TEXT
+                FROM ascent_grades
+                WHERE ascent_id = $1
+                ",
+                &[&self.0],
+            )
+            .await?
+            .into_iter()
+            .filter_map(|row| {
+                let grade_str: String = row.get(0);
+                match grade_str.parse::<Grade>() {
+                    Ok(grade) => Some(grade),
+                    Err(_) => None,
+                }
+            })
+            .collect();
+
+        Ok(value)
     }
 }
 
