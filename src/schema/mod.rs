@@ -896,6 +896,37 @@ impl MutationRoot {
         Ok(Ascent(ascent_id))
     }
 
+    async fn date_ascent<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "Ascent ID")] id: ID,
+        #[graphql(desc = "Area name")] date_interval: Option<DateInterval>,
+    ) -> Result<Ascent> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let ascent_id = client
+            .query_one(
+                "
+                UPDATE ascents
+                SET date_window = $1
+                WHERE id = $2
+                RETURNING id
+                ",
+                &[&date_interval, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Ascent(ascent_id))
+    }
+
     async fn rename_area<'a>(
         &self,
         ctx: &Context<'a>,
