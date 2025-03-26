@@ -2,7 +2,7 @@ use std::{error::Error, fmt::Display, ops::Bound, str::FromStr};
 
 use async_graphql::{InputValueError, InputValueResult, Scalar, ScalarType, Value};
 use chrono::{Duration, NaiveDate};
-use postgres_types::{accepts, FromSql};
+use postgres_types::{accepts, FromSql, ToSql};
 
 #[derive(Debug, PartialEq)]
 pub struct DateInterval(pub Bound<NaiveDate>, pub Bound<NaiveDate>);
@@ -85,6 +85,33 @@ impl<'a> FromSql<'a> for DateInterval {
     accepts!(DATE_RANGE, TEXT);
 }
 
+impl ToSql for DateInterval {
+    fn to_sql(&self, _: &postgres_types::Type, out: &mut bytes::BytesMut) -> Result<postgres_types::IsNull, Box<dyn Error + Sync + Send>>
+    where
+        Self: Sized {
+        let encoded = self.to_pg_range_text();
+        out.extend_from_slice(encoded.as_bytes());
+        Ok(postgres_types::IsNull::No)
+    }
+
+    accepts!(DATE_RANGE);
+
+    fn to_sql_checked(
+        &self,
+        ty: &postgres_types::Type,
+        out: &mut bytes::BytesMut,
+    ) -> Result<postgres_types::IsNull, Box<dyn Error + Sync + Send>> {
+        if !<Self as ToSql>::accepts(ty) {
+            return Err("Unsupported PostgreSQL type".into());
+        }
+        self.to_sql(ty, out)
+    }
+
+    fn encode_format(&self, _ty: &postgres_types::Type) -> postgres_types::Format {
+        postgres_types::Format::Text
+    }
+}
+
 impl DateInterval {
     fn from_pg_range_text(s: &str) -> std::result::Result<Self, ParseDateIntervalError> {
         let trimmed = s.trim();
@@ -126,6 +153,22 @@ impl DateInterval {
         };
 
         Ok(DateInterval(start_bound, end_bound))
+    }
+
+    fn to_pg_range_text(&self) -> String {
+        let start_bound = match &self.0 {
+            Bound::Included(date) => format!("[{}", date.format("%Y-%m-%d")),
+            Bound::Excluded(date) => format!("({}", date.format("%Y-%m-%d")),
+            Bound::Unbounded => "(".to_string(),
+        };
+
+        let end_bound = match &self.1 {
+            Bound::Included(date) => format!(",{:}]", date.format("%Y-%m-%d")),
+            Bound::Excluded(date) => format!(",{:})", date.format("%Y-%m-%d")),
+            Bound::Unbounded => ",)".to_string(),
+        };
+
+        format!("{}{}", start_bound, end_bound)
     }
 }
 
