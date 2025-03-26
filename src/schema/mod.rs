@@ -12,6 +12,7 @@ use crate::AppData;
 
 pub mod area;
 pub mod climb;
+pub mod date_interval;
 pub mod formation;
 pub mod grade;
 pub mod fontainebleau_grade;
