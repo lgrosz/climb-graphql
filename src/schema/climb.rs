@@ -5,6 +5,7 @@ use crate::schema::formation::Formation;
 use crate::AppData;
 
 use super::grade::Grade;
+use super::Ascent;
 
 #[derive(Union)]
 enum ClimbParent {
@@ -128,5 +129,31 @@ impl Climb {
         }
 
         Ok(None)
+    }
+
+    async fn ascents<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Ascent>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let value: Vec<Ascent> = client
+            .query(
+                "
+                SELECT id
+                FROM ascents
+                WHERE climb_id = $1
+                ",
+                &[&self.0],
+            )
+            .await?
+            .into_iter()
+            .map(|row| Ascent(row.get(0)))
+            .collect();
+
+        Ok(value)
     }
 }
