@@ -870,6 +870,7 @@ impl MutationRoot {
         ctx: &Context<'a>,
         #[graphql(desc = "Climb ID")] climb_id: ID,
         #[graphql(desc = "Climber ID")] climber_id: ID,
+        #[graphql(desc = "Date window")] date_window: Option<DateInterval>,
     ) -> Result<Ascent> {
         let climb_id: i32 = climb_id.0.parse().map_err(|_| "Invalid ID format")?;
         let climber_id: i32 = climber_id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -884,11 +885,11 @@ impl MutationRoot {
         let ascent_id = client
             .query_one(
                 "
-                INSERT INTO ascents (climb_id, climber_id)
-                VALUES ($1, $2)
+                INSERT INTO ascents (climb_id, climber_id, date_window)
+                VALUES ($1, $2, $3)
                 RETURNING id
                 ",
-                &[&climb_id, &climber_id],
+                &[&climb_id, &climber_id, &date_window],
             )
             .await?
             .get::<_, i32>(0);
