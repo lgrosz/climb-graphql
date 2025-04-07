@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, Union, ID};
+use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, ID};
 
 use area::Area;
 use climb::Climb;
@@ -67,26 +67,10 @@ impl ToSql for GradeInput {
 
 struct Image(pub i32);
 
-#[derive(Union)]
-enum ImageSource {
-    S3(S3ImageSource),
-}
-
 #[derive(SimpleObject)]
-struct S3ImageSource {
-    pub bucket: String,
-    pub object: String,
-}
-
-impl S3ImageSource {
-    // TODO ::from_row can be used "correctly" but on null rows, so use try_get and propogate
-    // errors instead of panicing
-    fn from_row(row: &tokio_postgres::Row) -> Self {
-        Self {
-            bucket: row.get("bucket"),
-            object: row.get("object"),
-        }
-    }
+struct PrepareImageUploadResult {
+    image: Image,
+    upload_url: String,
 }
 
 #[Object]
@@ -95,32 +79,38 @@ impl Image {
         self.0.into()
     }
 
-    async fn sources<'a>(&self, ctx: &Context<'a>) -> Result<Vec<ImageSource>> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
+    async fn download_url<'a>(
+        &self,
+        ctx: &Context<'a>,
+    ) -> Result<Option<String>> {
+        let appdata = ctx.data::<AppData>()?;
+
+        // TODO This should come from configuration
+        let bucket = "images";
+        let s3 = appdata.s3_pools.get(bucket)
+            .ok_or(format!("No {} bucket configured", bucket))?
+            .get().await?;
+
+        // TODO I am not a fan of this for at least two reasons
+        // - listing objects is slow (at least slower than a db query, I think)
+        // - assumes where the image is located
+        // climb-pg has an s3_sources table that can be used to know exactly where the sources are
+        // located, but this will require some sort of finalization/registration of the source
+        // being uploaded
+        let prefix = format!("{}/", self.0);
+        let listings = s3.list(prefix, Some("/".to_string())).await?;
+
+        let objects = match listings.first() {
+            Some(lst) => &lst.contents,
+            None => return Ok(None),
         };
 
-        let result = client
-            .query(
-                "
-                SELECT a.bucket, a.object
-                FROM s3_image_sources AS a
-                LEFT JOIN images ON images.id = a.image_id
-                WHERE a.image_id = $1
-                ",
-                &[&self.0],
-            )
-            .await?;
+        let object = match objects.first() {
+            Some(obj) => &obj.key,
+            None => return Ok(None),
+        };
 
-        let sources = result.into_iter()
-            .map(|row| ImageSource::S3(S3ImageSource::from_row(&row)))
-            .collect();
-
-        Ok(sources)
+        Ok(Some(s3.presign_get(object, 300, None).await?))
     }
 }
 
@@ -750,52 +740,6 @@ impl QueryRoot {
             .await?;
 
         Ok(Image(id))
-    }
-
-    async fn image_source_url<'a>(
-        &self,
-        ctx: &Context<'a>,
-        id: ID,
-        #[graphql(validator(min_length = 1))] name: String,
-    ) -> Result<String> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        // Ensure id is valid
-        client
-            .query_one("SELECT * FROM images WHERE id = $1", &[&id])
-            .await?;
-
-        // Error out if there already exists a source for this image
-        if (client
-            .query_opt("SELECT 1 FROM s3_image_sources WHERE image_id = $1", &[&id])
-            .await?)
-            .is_some()
-        {
-            return Err(async_graphql::Error::new("Source already exists"));
-        }
-
-        Ok(format!("{}/{}", id, name))
-    }
-
-    async fn s3_get<'a>(
-        &self,
-        ctx: &Context<'a>,
-        #[graphql(validator(min_length = 1))] bucket: String,
-        #[graphql(validator(min_length = 1))] object: String,
-    ) -> Result<String> {
-        let data = ctx.data::<AppData>()?;
-        let s3 = data.s3_pools.get(&bucket.to_string())
-            .ok_or(format!("No {} bucket configured", bucket))?
-            .get().await?;
-
-        Ok(s3.presign_get(object.to_string(), 300, None).await?)
     }
 }
 
@@ -1679,34 +1623,47 @@ impl MutationRoot {
         Ok(Formation(id))
     }
 
-    async fn create_image<'a>(&self, ctx: &Context<'a>) -> Result<Image> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
+    async fn prepare_image_upload<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(
+            validator(min_length = 1),
+            desc = "Name of image file",
+        )] name: String,
+    ) -> Result<PrepareImageUploadResult> {
+        let appdata = ctx.data::<AppData>()?;
+
+        let mut pg = match &appdata.pg_pool {
             Some(pool) => pool.get().await?,
             None => {
                 return Err("Database connection is not available".into());
             }
         };
 
-        let id = client
-            .query_one("INSERT INTO images DEFAULT VALUES RETURNING id", &[])
-            .await?
-            .get::<_, i32>(0);
-
-        Ok(Image(id))
-    }
-
-    async fn s3_put<'a>(
-        &self,
-        ctx: &Context<'a>,
-        #[graphql(validator(min_length = 1))] bucket: String,
-        #[graphql(validator(min_length = 1))] object: String,
-    ) -> Result<String> {
-        let data = ctx.data::<AppData>()?;
-        let s3 = data.s3_pools.get(&bucket.to_string())
+        // TODO this is configured, it shouldn't be hard-coded..
+        let bucket = "images";
+        let s3 = appdata.s3_pools.get(bucket)
             .ok_or(format!("No {} bucket configured", bucket))?
             .get().await?;
 
-        Ok(s3.presign_put(object.to_string(), 300, None, None).await?)
+        let transaction = pg.transaction().await?;
+
+        let image = Image(
+            transaction
+                .query_one("INSERT INTO images DEFAULT VALUES RETURNING id", &[])
+                .await?
+                .get::<_, i32>(0),
+        );
+
+        let object = format!("{}/{}", image.0, name);
+        let upload_url = s3.presign_put(object, 300, None, None).await?;
+
+        // TODO failure to upload an image to the returned url, results in the image row being
+        // orphaned.. either need
+        // - garbage collection based on a "created-at" column
+        // - cleanup when presign url expires and nothing has been uploaded
+        transaction.commit().await?;
+
+        Ok(PrepareImageUploadResult { image, upload_url })
     }
 }
