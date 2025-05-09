@@ -21,7 +21,7 @@ impl Climb {
         self.0.into()
     }
 
-    async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
+    async fn name(&self, ctx: &Context<'_>) -> Result<Option<String>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -38,7 +38,7 @@ impl Climb {
         Ok(value.map(|name| name.to_string()))
     }
 
-    async fn description<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
+    async fn description(&self, ctx: &Context<'_>) -> Result<Option<String>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -55,7 +55,7 @@ impl Climb {
         Ok(value.map(|description| description.to_string()))
     }
 
-    async fn grades<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Grade>> {
+    async fn grades(&self, ctx: &Context<'_>) -> Result<Vec<Grade>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -89,7 +89,7 @@ impl Climb {
         Ok(value)
     }
 
-    async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<ClimbParent>> {
+    async fn parent(&self, ctx: &Context<'_>) -> Result<Option<ClimbParent>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -131,7 +131,7 @@ impl Climb {
         Ok(None)
     }
 
-    async fn ascents<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Ascent>> {
+    async fn ascents(&self, ctx: &Context<'_>) -> Result<Vec<Ascent>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
