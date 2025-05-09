@@ -79,6 +79,34 @@ impl Image {
         self.0.into()
     }
 
+    async fn alt<'a>(
+        &self,
+        ctx: &Context<'a>,
+    ) -> Result<Option<String>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query_one(
+                "
+                SELECT alt
+                FROM images
+                WHERE id = $1
+                ",
+                &[&self.0],
+            )
+            .await?;
+
+        let value: Option<&str> = result.try_get(0)?;
+
+        Ok(value.map(|s| s.to_string()))
+    }
+
     async fn download_url<'a>(
         &self,
         ctx: &Context<'a>,
@@ -1630,6 +1658,10 @@ impl MutationRoot {
             validator(min_length = 1),
             desc = "Name of image file",
         )] name: String,
+        #[graphql(
+            validator(min_length = 1),
+            desc = "Alternative text",
+        )] alt: Option<String>,
     ) -> Result<PrepareImageUploadResult> {
         let appdata = ctx.data::<AppData>()?;
 
@@ -1650,7 +1682,7 @@ impl MutationRoot {
 
         let image = Image(
             transaction
-                .query_one("INSERT INTO images DEFAULT VALUES RETURNING id", &[])
+                .query_one("INSERT INTO images (alt) VALUES ($1) RETURNING id", &[&alt])
                 .await?
                 .get::<_, i32>(0),
         );
