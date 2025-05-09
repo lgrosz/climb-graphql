@@ -79,10 +79,7 @@ impl Climb {
             .into_iter()
             .filter_map(|row| {
                 let grade_str: String = row.get(0);
-                match grade_str.parse::<Grade>() {
-                    Ok(grade) => Some(grade),
-                    Err(_) => None,
-                }
+                grade_str.parse::<Grade>().ok()
             })
             .collect();
 
