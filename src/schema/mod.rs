@@ -79,9 +79,9 @@ impl Image {
         self.0.into()
     }
 
-    async fn alt<'a>(
+    async fn alt(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Option<String>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -107,9 +107,9 @@ impl Image {
         Ok(value.map(|s| s.to_string()))
     }
 
-    async fn download_url<'a>(
+    async fn download_url(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Option<String>> {
         let appdata = ctx.data::<AppData>()?;
 
@@ -150,9 +150,9 @@ impl Climber {
         self.0.into()
     }
 
-    async fn first_name<'a>(
+    async fn first_name(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<String> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -178,9 +178,9 @@ impl Climber {
         Ok(value.to_string())
     }
 
-    async fn last_name<'a>(
+    async fn last_name(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<String> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -215,9 +215,9 @@ impl Ascent {
         self.0.into()
     }
 
-    async fn climb<'a>(
+    async fn climb(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Climb> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -243,9 +243,9 @@ impl Ascent {
         Ok(Climb(climb_id))
     }
 
-    async fn climber<'a>(
+    async fn climber(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Climber> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -271,9 +271,9 @@ impl Ascent {
         Ok(Climber(climber_id))
     }
 
-    async fn date_window<'a>(
+    async fn date_window(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Option<DateInterval>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -300,9 +300,9 @@ impl Ascent {
         Ok(value)
     }
 
-    async fn grades<'a>(
+    async fn grades(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Vec<Grade>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -340,9 +340,9 @@ impl Ascent {
 
 #[Object]
 impl QueryRoot {
-    async fn areas<'a>(
+    async fn areas(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Vec<Area>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -364,9 +364,9 @@ impl QueryRoot {
         Ok(areas)
     }
 
-    async fn areas_by_parent<'a>(
+    async fn areas_by_parent(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
     ) -> Result<Vec<Area>> {
         let data = ctx.data::<AppData>()?;
@@ -414,9 +414,9 @@ impl QueryRoot {
         Ok(areas)
     }
 
-    async fn area<'a>(
+    async fn area(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Area id")] id: ID,
     ) -> Result<Area> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -436,9 +436,9 @@ impl QueryRoot {
         Ok(Area(id))
     }
 
-    async fn ascents<'a>(
+    async fn ascents(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Vec<Ascent>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -460,9 +460,9 @@ impl QueryRoot {
         Ok(ascents)
     }
 
-    async fn ascent<'a>(
+    async fn ascent(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Ascent id")] id: ID,
     ) -> Result<Ascent> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -482,9 +482,9 @@ impl QueryRoot {
         Ok(Ascent(id))
     }
 
-    async fn climbs<'a>(
+    async fn climbs(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Vec<Climb>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -506,9 +506,9 @@ impl QueryRoot {
         Ok(climbs)
     }
 
-    async fn climbs_by_parent<'a>(
+    async fn climbs_by_parent(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Vec<Climb>> {
         let data = ctx.data::<AppData>()?;
@@ -570,9 +570,9 @@ impl QueryRoot {
         Ok(climbs)
     }
 
-    async fn climb<'a>(
+    async fn climb(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb id")] id: ID,
     ) -> Result<Climb> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -592,9 +592,9 @@ impl QueryRoot {
         Ok(Climb(id))
     }
 
-    async fn climbers<'a>(
+    async fn climbers(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Vec<Climber>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -616,9 +616,9 @@ impl QueryRoot {
         Ok(climbers)
     }
 
-    async fn climber<'a>(
+    async fn climber(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climber id")] id: ID,
     ) -> Result<Climber> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -638,9 +638,9 @@ impl QueryRoot {
         Ok(Climber(id))
     }
 
-    async fn formations<'a>(
+    async fn formations(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
     ) -> Result<Vec<Formation>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
@@ -662,9 +662,9 @@ impl QueryRoot {
         Ok(formations)
     }
 
-    async fn formations_by_parent<'a>(
+    async fn formations_by_parent(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Vec<Formation>> {
         let data = ctx.data::<AppData>()?;
@@ -726,9 +726,9 @@ impl QueryRoot {
         Ok(formations)
     }
 
-    async fn formation<'a>(
+    async fn formation(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Formation id")] id: ID,
     ) -> Result<Formation> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -748,9 +748,9 @@ impl QueryRoot {
         Ok(Formation(id))
     }
 
-    async fn image<'a>(
+    async fn image(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         id: ID,
     ) -> Result<Image> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -792,9 +792,9 @@ pub struct MutationRoot;
 
 #[Object]
 impl MutationRoot {
-    async fn add_area<'a>(
+    async fn add_area(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Area name")] name: Option<String>,
         #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
     ) -> Result<Area> {
@@ -837,9 +837,9 @@ impl MutationRoot {
         Ok(Area(area_id))
     }
 
-    async fn add_ascent<'a>(
+    async fn add_ascent(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb ID")] climb_id: ID,
         #[graphql(desc = "Climber ID")] climber_id: ID,
         #[graphql(desc = "Date window")] date_window: Option<DateInterval>,
@@ -869,9 +869,9 @@ impl MutationRoot {
         Ok(Ascent(ascent_id))
     }
 
-    async fn date_ascent<'a>(
+    async fn date_ascent(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Ascent ID")] id: ID,
         #[graphql(desc = "Area name")] date_interval: Option<DateInterval>,
     ) -> Result<Ascent> {
@@ -900,9 +900,9 @@ impl MutationRoot {
         Ok(Ascent(ascent_id))
     }
 
-    async fn rename_area<'a>(
+    async fn rename_area(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Area id")] id: ID,
         #[graphql(desc = "Area name")] name: Option<String>,
     ) -> Result<Area> {
@@ -926,9 +926,9 @@ impl MutationRoot {
         Ok(Area(area_id))
     }
 
-    async fn describe_area<'a>(
+    async fn describe_area(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Area id")] id: ID,
         #[graphql(desc = "Area description")] description: Option<String>,
     ) -> Result<Area> {
@@ -952,9 +952,9 @@ impl MutationRoot {
         Ok(Area(area_id))
     }
 
-    async fn move_area<'a>(
+    async fn move_area(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Area id")] id: ID,
         #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
     ) -> Result<Area> {
@@ -996,9 +996,9 @@ impl MutationRoot {
         Ok(Area(id))
     }
 
-    async fn describe_formation<'a>(
+    async fn describe_formation(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Formation id")] id: ID,
         #[graphql(desc = "Formation description")] description: Option<String>,
     ) -> Result<Formation> {
@@ -1022,9 +1022,9 @@ impl MutationRoot {
         Ok(Formation(formation_id))
     }
 
-    async fn remove_area<'a>(
+    async fn remove_area(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Area id")] id: ID,
     ) -> Result<Area> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -1043,9 +1043,9 @@ impl MutationRoot {
         Ok(Area(id))
     }
 
-    async fn remove_ascent<'a>(
+    async fn remove_ascent(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Ascent id")] id: ID,
     ) -> Result<Ascent> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -1064,9 +1064,9 @@ impl MutationRoot {
         Ok(Ascent(id))
     }
 
-    async fn add_climb<'a>(
+    async fn add_climb(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb name")] name: Option<String>,
         #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Climb> {
@@ -1115,9 +1115,9 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
-    async fn rename_climb<'a>(
+    async fn rename_climb(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Climb name")] name: Option<String>,
     ) -> Result<Climb> {
@@ -1141,9 +1141,9 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
-    async fn describe_climb<'a>(
+    async fn describe_climb(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Climb description")] description: Option<String>,
     ) -> Result<Climb> {
@@ -1167,9 +1167,9 @@ impl MutationRoot {
         Ok(Climb(climb_id))
     }
 
-    async fn move_climb<'a>(
+    async fn move_climb(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Climb> {
@@ -1251,9 +1251,9 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
-    async fn add_ascent_grade<'a>(
+    async fn add_ascent_grade(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Ascent ID")] id: ID,
         #[graphql(desc = "Grade")] grade: GradeInput,
     ) -> Result<Ascent> {
@@ -1279,9 +1279,9 @@ impl MutationRoot {
         Ok(Ascent(id))
     }
 
-    async fn add_climb_grade<'a>(
+    async fn add_climb_grade(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Grade")] grade: GradeInput,
     ) -> Result<Climb> {
@@ -1307,9 +1307,9 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
-    async fn add_climber<'a>(
+    async fn add_climber(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "First name")] first_name: String,
         #[graphql(desc = "Last name")] last_name: String,
     ) -> Result<Climber> {
@@ -1336,9 +1336,9 @@ impl MutationRoot {
         Ok(Climber(id))
     }
 
-    async fn remove_ascent_grade<'a>(
+    async fn remove_ascent_grade(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Ascent ID")] id: ID,
         #[graphql(desc = "Grade")] grade: GradeInput,
     ) -> Result<Ascent> {
@@ -1364,9 +1364,9 @@ impl MutationRoot {
         Ok(Ascent(id))
     }
 
-    async fn remove_climb_grade<'a>(
+    async fn remove_climb_grade(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb id")] id: ID,
         #[graphql(desc = "Grade")] grade: GradeInput,
     ) -> Result<Climb> {
@@ -1392,9 +1392,9 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
-    async fn remove_climb<'a>(
+    async fn remove_climb(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climb id")] id: ID,
     ) -> Result<Climb> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -1414,9 +1414,9 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
-    async fn remove_climber<'a>(
+    async fn remove_climber(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Climber id")] id: ID,
     ) -> Result<Climber> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -1436,9 +1436,9 @@ impl MutationRoot {
         Ok(Climber(id))
     }
 
-    async fn add_formation<'a>(
+    async fn add_formation(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Formation name")] name: Option<String>,
         #[graphql(desc = "Formation location")] location: Option<Coordinate>,
         #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
@@ -1491,9 +1491,9 @@ impl MutationRoot {
         Ok(Formation(id))
     }
 
-    async fn rename_formation<'a>(
+    async fn rename_formation(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Formation id")] id: ID,
         #[graphql(desc = "Formation name")] name: Option<String>,
     ) -> Result<Formation> {
@@ -1517,9 +1517,9 @@ impl MutationRoot {
         Ok(Formation(id))
     }
 
-    async fn relocate_formation<'a>(
+    async fn relocate_formation(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Formation id")] id: ID,
         #[graphql(desc = "Formation location")] location: Option<Coordinate>,
     ) -> Result<Formation> {
@@ -1546,9 +1546,9 @@ impl MutationRoot {
         Ok(Formation(id))
     }
 
-    async fn move_formation<'a>(
+    async fn move_formation(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Formation id")] id: ID,
         #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Formation> {
@@ -1629,9 +1629,9 @@ impl MutationRoot {
         Ok(Formation(id))
     }
 
-    async fn remove_formation<'a>(
+    async fn remove_formation(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(desc = "Formation id")] id: ID,
     ) -> Result<Formation> {
         let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
@@ -1651,9 +1651,9 @@ impl MutationRoot {
         Ok(Formation(id))
     }
 
-    async fn prepare_image_upload<'a>(
+    async fn prepare_image_upload(
         &self,
-        ctx: &Context<'a>,
+        ctx: &Context<'_>,
         #[graphql(
             validator(min_length = 1),
             desc = "Name of image file",

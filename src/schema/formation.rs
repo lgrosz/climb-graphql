@@ -25,7 +25,7 @@ impl Formation {
         self.0.into()
     }
 
-    async fn name<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
+    async fn name(&self, ctx: &Context<'_>) -> Result<Option<String>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -42,7 +42,7 @@ impl Formation {
         Ok(value.map(|name| name.to_string()))
     }
 
-    async fn description<'a>(&self, ctx: &Context<'a>) -> Result<Option<String>> {
+    async fn description(&self, ctx: &Context<'_>) -> Result<Option<String>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -59,7 +59,7 @@ impl Formation {
         Ok(value.map(|description| description.to_string()))
     }
 
-    async fn location<'a>(&self, ctx: &Context<'a>) -> Result<Option<Coordinate>> {
+    async fn location(&self, ctx: &Context<'_>) -> Result<Option<Coordinate>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -79,7 +79,7 @@ impl Formation {
         }))
     }
 
-    async fn parent<'a>(&self, ctx: &Context<'a>) -> Result<Option<FormationParent>> {
+    async fn parent(&self, ctx: &Context<'_>) -> Result<Option<FormationParent>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -121,7 +121,7 @@ impl Formation {
         Ok(None)
     }
 
-    async fn formations<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Formation>> {
+    async fn formations(&self, ctx: &Context<'_>) -> Result<Vec<Formation>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
@@ -139,7 +139,7 @@ impl Formation {
         Ok(formations)
     }
 
-    async fn climbs<'a>(&self, ctx: &Context<'a>) -> Result<Vec<Climb>> {
+    async fn climbs(&self, ctx: &Context<'_>) -> Result<Vec<Climb>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
