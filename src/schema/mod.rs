@@ -745,6 +745,30 @@ impl QueryRoot {
         Ok(Formation(id))
     }
 
+    async fn images(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Vec<Image>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query("SELECT images.id FROM images", &[])
+            .await?;
+
+        let images = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Image))
+            .collect::<Result<Vec<Image>, _>>()?;
+
+        Ok(images)
+    }
+
     async fn image(
         &self,
         ctx: &Context<'_>,
