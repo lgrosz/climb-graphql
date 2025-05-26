@@ -8,6 +8,7 @@ use date_interval::DateInterval;
 use formation::{Coordinate, Formation};
 use grade::{Grade, GradeInput};
 use postgres_types::ToSql;
+use mutation_root::image::ImageMutationRoot;
 
 use crate::AppData;
 
@@ -19,6 +20,7 @@ pub mod grade;
 pub mod fontainebleau_grade;
 pub mod vermin_grade;
 pub mod yosemite_decimal_grade;
+pub mod mutation_root;
 
 pub struct QueryRoot;
 
@@ -1747,5 +1749,13 @@ impl MutationRoot {
         transaction.commit().await?;
 
         Ok(PrepareImageUploadResult { image, upload_url })
+    }
+
+    async fn image(
+        &self,
+        #[graphql(desc = "ID of image")]
+        id: ID,
+    ) -> ImageMutationRoot {
+        ImageMutationRoot { id }
     }
 }
