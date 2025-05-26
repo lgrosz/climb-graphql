@@ -140,6 +140,35 @@ impl Image {
 
         Ok(Some(s3.presign_get(object, 300, None).await?))
     }
+
+    async fn formations(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Vec<Formation>> {
+        let appdata = ctx.data::<AppData>()?;
+        let client = match &appdata.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query(
+                "
+                SELECT formation_id
+                FROM formations_in_image
+                WHERE image_id = $1
+                ", &[&self.0]
+            ).await?;
+
+        let formations = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Formation))
+            .collect::<Result<Vec<Formation>, _>>()?;
+
+        Ok(formations)
+    }
 }
 
 struct Climber(pub i32);
