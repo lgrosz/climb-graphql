@@ -1714,6 +1714,9 @@ impl MutationRoot {
             validator(min_length = 1),
             desc = "Alternative text",
         )] alt: Option<String>,
+        #[graphql(
+            desc = "IDs of formations in this image",
+        )] formation_ids: Option<Vec<ID>>,
     ) -> Result<PrepareImageUploadResult> {
         let appdata = ctx.data::<AppData>()?;
 
@@ -1738,6 +1741,19 @@ impl MutationRoot {
                 .await?
                 .get::<_, i32>(0),
         );
+
+        if let Some(ids) = &formation_ids {
+            for formation_id in ids {
+                let formation_id: i32 = formation_id
+                    .as_str()
+                    .parse()
+                    .map_err(|_| "Invalid formation ID".to_string())?;
+                transaction.execute(
+                    "INSERT INTO formations_in_image (formation_id, image_id) VALUES ($1, $2)",
+                    &[&formation_id, &image.0],
+                ).await?;
+            }
+        }
 
         let object = format!("{}/{}", image.0, name);
         let upload_url = s3.presign_put(object, 300, None, None).await?;
