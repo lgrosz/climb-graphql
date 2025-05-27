@@ -4,6 +4,8 @@ use crate::schema::area::Area;
 use crate::schema::climb::Climb;
 use crate::AppData;
 
+use super::Image;
+
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "CoordinateInput")]
 pub struct Coordinate {
@@ -160,5 +162,29 @@ impl Formation {
             .collect::<Result<Vec<Climb>, _>>()?;
 
         Ok(climbs)
+    }
+
+    async fn images(&self, ctx: &Context<'_>) -> Result<Vec<Image>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query(
+                "SELECT image_id FROM formations_in_image WHERE formation_id = $1",
+                &[&self.0],
+            )
+            .await?;
+
+        let images = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Image))
+            .collect::<Result<Vec<Image>, _>>()?;
+
+        Ok(images)
     }
 }
