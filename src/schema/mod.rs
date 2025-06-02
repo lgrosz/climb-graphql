@@ -9,6 +9,7 @@ use formation::{Coordinate, Formation};
 use grade::{Grade, GradeInput};
 use postgres_types::ToSql;
 use mutation_root::image::ImageMutationRoot;
+use types::topo::Topo;
 
 use crate::AppData;
 
@@ -21,6 +22,7 @@ pub mod fontainebleau_grade;
 pub mod vermin_grade;
 pub mod yosemite_decimal_grade;
 pub mod mutation_root;
+pub mod types;
 
 pub struct QueryRoot;
 
@@ -820,6 +822,28 @@ impl QueryRoot {
             .await?;
 
         Ok(Image(id))
+    }
+
+    async fn topo(
+        &self,
+        ctx: &Context<'_>,
+        id: ID,
+    ) -> Result<Topo> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        // Just check for existence
+        client
+            .query_one("SELECT 1 FROM topos WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(Topo(id))
     }
 }
 
