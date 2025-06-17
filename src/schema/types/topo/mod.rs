@@ -1,9 +1,9 @@
 use async_graphql::{Context, Error, Object, Result, ID};
 
 use crate::AppData;
-use features::{PathFeature, PathGeometry, TopoFeature};
+use features::{ImageFeature, PathFeature, PathGeometry, TopoFeature};
 
-use super::{geometry::Point2D, spline::BasisSpline};
+use super::{geometry::{Point2D, Rect}, spline::BasisSpline};
 
 pub mod features;
 
@@ -99,40 +99,82 @@ impl Topo {
             }
         };
 
-        let result = client
-            .query(
-                // TODO I tried to implement FromSql for BasisSpline, but I was having trouble
-                // getting the data out of the underlying composite-type
-                "
-                SELECT climb_id, (geometry).*
-                FROM topo_path_features
-                WHERE topo_id = $1
-                ",
-                &[&self.0],
-            )
-            .await?;
+        let mut all_features = Vec::new();
 
-        let features: Vec<TopoFeature> = result
-            .into_iter()
-            .map(|row| {
-                let climb_id: i32 = row.get("climb_id");
-                let degree: i32 = row.get("degree");
-                let degree: u32 = u32::try_from(degree)
-                    .map_err(|_| Error::new("degree must be non-negative"))?;
-                let knots: Vec<f64> = row.get("knots");
-                let control_points: Vec<Point2D> = row
-                    .get::<_, Vec<geo_types::Point<f64>>>("control_points")
-                    .into_iter()
-                    .map(Point2D::from)
-                    .collect();
+        all_features.extend(get_path_features(&client, self.0).await?);
+        all_features.extend(get_image_features(&client, self.0).await?);
 
-                let basis_spline = BasisSpline { degree, knots, control_points };
-                let geometry: PathGeometry = PathGeometry::BasisSpline(basis_spline);
-
-                Ok(TopoFeature::Path(PathFeature { climb_id, geometry }))
-            })
-            .collect::<Result<Vec<TopoFeature>, async_graphql::Error>>()?;
-
-        Ok(features)
+        Ok(all_features)
     }
 }
+
+async fn get_path_features(client: &deadpool::managed::Object<deadpool_postgres::Manager>, topo_id: i32) -> Result<Vec<TopoFeature>> {
+    let result = client
+        .query(
+            // TODO I tried to implement FromSql for BasisSpline, but I was having trouble
+            // getting the data out of the underlying composite-type
+            "
+            SELECT climb_id, (geometry).*
+            FROM topo_path_features
+            WHERE topo_id = $1
+            ",
+            &[&topo_id],
+        )
+        .await?;
+
+    let features: Vec<TopoFeature> = result
+        .into_iter()
+        .map(|row| {
+            let climb_id: i32 = row.get("climb_id");
+            let degree: i32 = row.get("degree");
+            let degree: u32 = u32::try_from(degree)
+                .map_err(|_| Error::new("degree must be non-negative"))?;
+            let knots: Vec<f64> = row.get("knots");
+            let control_points: Vec<Point2D> = row
+                .get::<_, Vec<geo_types::Point<f64>>>("control_points")
+                .into_iter()
+                .map(Point2D::from)
+                .collect();
+
+            let basis_spline = BasisSpline { degree, knots, control_points };
+            let geometry: PathGeometry = PathGeometry::BasisSpline(basis_spline);
+
+            Ok(TopoFeature::Path(PathFeature { climb_id, geometry }))
+        })
+    .collect::<Result<Vec<TopoFeature>, async_graphql::Error>>()?;
+
+    Ok(features)
+}
+
+async fn get_image_features(client: &deadpool::managed::Object<deadpool_postgres::Manager>, topo_id: i32) -> Result<Vec<TopoFeature>> {
+    let result = client
+        .query(
+            "
+            SELECT image_id, source_crop, dest_crop
+            FROM topo_image_features
+            WHERE topo_id = $1
+            ",
+            &[&topo_id],
+        )
+        .await?;
+
+    let features: Vec<TopoFeature> = result
+        .into_iter()
+        .map(|row| {
+            let image_id = row.get("image_id");
+
+            let source: Option<Rect> = row
+                .get::<_, Option<geo_types::Rect>>("source_crop")
+                .map(Rect::from);
+
+            let dest: Rect = row
+                .get::<_, geo_types::Rect>("dest_crop")
+                .into();
+
+            Ok(TopoFeature::Image(ImageFeature { image_id, source, dest }))
+        })
+    .collect::<Result<Vec<TopoFeature>, async_graphql::Error>>()?;
+
+    Ok(features)
+}
+

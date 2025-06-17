@@ -2,7 +2,8 @@ use async_graphql::{Object, Union};
 
 use crate::schema::{
     climb::Climb,
-    types::spline::BasisSpline,
+    types::{geometry::Rect, spline::BasisSpline},
+    Image,
 };
 
 #[derive(Union)]
@@ -27,8 +28,30 @@ impl PathFeature {
     }
 }
 
+pub struct ImageFeature {
+    pub image_id: i32,
+    pub source: Option<Rect>,
+    pub dest: Rect,
+}
+
+#[Object(name = "TopoImageFeature")]
+impl ImageFeature {
+    async fn image(&self) -> Image {
+        Image(self.image_id)
+    }
+
+    async fn source(&self) -> &Option<Rect> {
+        &self.source
+    }
+
+    async fn dest(&self) -> &Rect {
+        &self.dest
+    }
+}
+
 #[derive(Union)]
 pub enum TopoFeature {
     Path(PathFeature),
+    Image(ImageFeature),
 }
 
