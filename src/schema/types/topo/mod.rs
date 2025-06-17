@@ -1,6 +1,11 @@
-use async_graphql::{Context, Object, Result, ID};
+use async_graphql::{Context, Error, Object, Result, ID};
 
 use crate::AppData;
+use features::{PathFeature, PathGeometry, TopoFeature};
+
+use super::{geometry::Point2D, spline::BasisSpline};
+
+pub mod features;
 
 pub struct Topo(pub i32);
 
@@ -83,5 +88,51 @@ impl Topo {
         let height: f64 = result.get(0); 
 
         Ok(height)
+    }
+
+    async fn features(&self, ctx: &Context<'_>) -> Result<Vec<TopoFeature>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query(
+                // TODO I tried to implement FromSql for BasisSpline, but I was having trouble
+                // getting the data out of the underlying composite-type
+                "
+                SELECT climb_id, (geometry).*
+                FROM topo_path_features
+                WHERE topo_id = $1
+                ",
+                &[&self.0],
+            )
+            .await?;
+
+        let features: Vec<TopoFeature> = result
+            .into_iter()
+            .map(|row| {
+                let climb_id: i32 = row.get("climb_id");
+                let degree: i32 = row.get("degree");
+                let degree: u32 = u32::try_from(degree)
+                    .map_err(|_| Error::new("degree must be non-negative"))?;
+                let knots: Vec<f64> = row.get("knots");
+                let control_points: Vec<Point2D> = row
+                    .get::<_, Vec<geo_types::Point<f64>>>("control_points")
+                    .into_iter()
+                    .map(Point2D::from)
+                    .collect();
+
+                let basis_spline = BasisSpline { degree, knots, control_points };
+                let geometry: PathGeometry = PathGeometry::BasisSpline(basis_spline);
+
+                Ok(TopoFeature::Path(PathFeature { climb_id, geometry }))
+            })
+            .collect::<Result<Vec<TopoFeature>, async_graphql::Error>>()?;
+
+        Ok(features)
     }
 }

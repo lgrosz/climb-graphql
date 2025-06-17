@@ -12,8 +12,9 @@ chrono = "0.4.40"
 config = "0.14.1"
 deadpool = "0.12.1"
 deadpool-postgres = { version = "0.14.0", features = ["serde"] }
+geo-types = "0.7.16"
 postgis = "0.9.0"
-postgres-types = { version = "0.2.8", features = ["derive"] }
+postgres-types = { version = "0.2.8", features = ["derive", "with-geo-types-0_7"] }
 regex = "1.11.1"
 rust-s3 = "0.35.1"
 serde = "1.0.215"
