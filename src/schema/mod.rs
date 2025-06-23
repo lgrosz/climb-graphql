@@ -1727,6 +1727,36 @@ impl MutationRoot {
         Ok(Formation(id))
     }
 
+    async fn add_topo(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Topo title")] title: Option<String>,
+        #[graphql(desc = "Topo width")] width: f64,
+        #[graphql(desc = "Topo height")] height: f64,
+    ) -> Result<Topo> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let id = client
+            .query_one(
+                "
+                INSERT INTO topos (title, width, height)
+                VALUES ($1, $2, $3)
+                RETURNING id
+                ",
+                &[&title, &width, &height],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Topo(id))
+    }
+
     async fn prepare_image_upload(
         &self,
         ctx: &Context<'_>,
