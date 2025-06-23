@@ -1,4 +1,4 @@
-use async_graphql::{Object, Union};
+use async_graphql::{InputObject, Object, OneofObject, Union};
 
 use crate::schema::{
     climb::Climb,
@@ -53,5 +53,17 @@ impl ImageFeature {
 pub enum TopoFeature {
     Path(PathFeature),
     Image(ImageFeature),
+}
+
+#[derive(InputObject)]
+pub struct TopoImageFeatureInput {
+    pub image_id: i32, // TODO Since these are public, they should be `ID`s
+    pub source: Option<Rect>,
+    pub dest: Rect,
+}
+
+#[derive(OneofObject)]
+pub enum TopoFeatureInput {
+    Image(TopoImageFeatureInput),
 }
 

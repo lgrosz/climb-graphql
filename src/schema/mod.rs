@@ -9,6 +9,7 @@ use formation::{Coordinate, Formation};
 use grade::{Grade, GradeInput};
 use postgres_types::ToSql;
 use mutation_root::image::ImageMutationRoot;
+use mutation_root::topo::TopoMutationRoot;
 use types::topo::Topo;
 
 use crate::AppData;
@@ -1827,5 +1828,13 @@ impl MutationRoot {
         id: ID,
     ) -> ImageMutationRoot {
         ImageMutationRoot { id }
+    }
+
+    async fn topo(
+        &self,
+        #[graphql(desc = "ID of topo")]
+        id: ID,
+    ) -> TopoMutationRoot {
+        TopoMutationRoot { id }
     }
 }
