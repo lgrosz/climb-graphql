@@ -32,6 +32,26 @@ impl From<&FeatureId> for ID {
     }
 }
 
+impl TryFrom<ID> for FeatureId {
+    type Error = &'static str;
+
+    fn try_from(value: ID) -> Result<Self, Self::Error> {
+        let (prefix, after) = value.split_once('/').ok_or("invalid format")?;
+
+        let id = after.parse::<i32>().map_err(|_| match prefix {
+            "path" => "invalid path id",
+            "image" => "invalid image id",
+            _ => "unknown prefix",
+        })?;
+
+        match prefix {
+            "path" => Ok(FeatureId::Path(id)),
+            "image" => Ok(FeatureId::Image(id)),
+            _ => Err("unknown prefix"),
+        }
+    }
+}
+
 #[Object(name = "TopoPathFeature")]
 impl PathFeature {
     async fn id(&self) -> ID {

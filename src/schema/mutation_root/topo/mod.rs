@@ -1,7 +1,7 @@
 use async_graphql::{Context, Object, Result, ID};
 use deadpool_postgres::Transaction;
 
-use crate::{schema::types::{spline::BasisSplineInput, topo::{features::{TopoFeatureInput, TopoImageFeatureInput, TopoPathFeatureInput, TopoPathGeometryInput}, Topo}}, AppData};
+use crate::{schema::types::{spline::BasisSplineInput, topo::{features::{FeatureId, TopoFeatureInput, TopoImageFeatureInput, TopoPathFeatureInput, TopoPathGeometryInput}, Topo}}, AppData};
 
 pub struct TopoMutationRoot {
     pub id: ID,
@@ -28,6 +28,33 @@ impl TopoMutationRoot {
         match feature {
             TopoFeatureInput::Image(input) => insert_image_feature(&transaction, input, topo_id).await?,
             TopoFeatureInput::Path(input) => insert_path_feature(&transaction, input, topo_id).await?,
+        }
+
+        transaction.commit().await?;
+
+        Ok(Topo(topo_id))
+    }
+
+    async fn remove_feature(
+        &self,
+        ctx: &Context<'_>,
+        id: ID,
+    ) -> Result<Topo> {
+        let appdata = ctx.data::<AppData>()?;
+        let mut client = match &appdata.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let transaction = client.transaction().await?;
+        let topo_id: i32 = self.id.0.parse()?;
+        let feature_id = FeatureId::try_from(id)?;
+
+        match feature_id {
+            FeatureId::Path(id) => remove_path_feature(&transaction, topo_id, id).await?,
+            FeatureId::Image(id) => remove_image_feature(&transaction ,topo_id, id).await?,
         }
 
         transaction.commit().await?;
@@ -76,3 +103,22 @@ async fn insert_path_feature(t: &Transaction<'_>, input: TopoPathFeatureInput, t
     Ok(())
 }
 
+async fn remove_path_feature(t: &Transaction<'_>, topo_id: i32, feature_id: i32) -> Result<()> {
+    t.execute(
+        "
+        DELETE FROM topo_path_features
+        WHERE topo_id = $1 AND id = $2
+        ", &[&topo_id, &feature_id]).await?;
+
+    Ok(())
+}
+
+async fn remove_image_feature(t: &Transaction<'_>, topo_id: i32, feature_id: i32) -> Result<()> {
+    t.execute(
+        "
+        DELETE FROM topo_image_features
+        WHERE topo_id = $1 AND id = $2
+        ", &[&topo_id, &feature_id]).await?;
+
+    Ok(())
+}
