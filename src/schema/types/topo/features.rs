@@ -1,8 +1,8 @@
-use async_graphql::{InputObject, Object, OneofObject, Union};
+use async_graphql::{InputObject, Object, OneofObject, Union, ID};
 
 use crate::schema::{
     climb::Climb,
-    types::{geometry::Rect, spline::BasisSpline},
+    types::{geometry::Rect, spline::{BasisSpline, BasisSplineInput}},
     Image,
 };
 
@@ -63,7 +63,19 @@ pub struct TopoImageFeatureInput {
 }
 
 #[derive(OneofObject)]
+pub enum TopoPathGeometryInput {
+    BasisSpline(BasisSplineInput),
+}
+
+#[derive(InputObject)]
+pub struct TopoPathFeatureInput {
+    pub climb_id: ID,
+    pub geometry: TopoPathGeometryInput,
+}
+
+#[derive(OneofObject)]
 pub enum TopoFeatureInput {
     Image(TopoImageFeatureInput),
+    Path(TopoPathFeatureInput),
 }
 

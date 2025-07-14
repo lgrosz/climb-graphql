@@ -13,6 +13,12 @@ impl From<geo_types::Point<f64>> for Point2D {
     }
 }
 
+impl From<Point2D> for geo_types::Point<f64> {
+    fn from(p: Point2D) -> Self {
+        geo_types::Point::new(p.x, p.y)
+    }
+}
+
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "RectInput")]
 pub struct Rect {

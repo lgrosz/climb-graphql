@@ -1,7 +1,7 @@
 use async_graphql::{Context, Object, Result, ID};
 use deadpool_postgres::Transaction;
 
-use crate::{schema::types::topo::{features::{TopoFeatureInput, TopoImageFeatureInput}, Topo}, AppData};
+use crate::{schema::types::{spline::BasisSplineInput, topo::{features::{TopoFeatureInput, TopoImageFeatureInput, TopoPathFeatureInput, TopoPathGeometryInput}, Topo}}, AppData};
 
 pub struct TopoMutationRoot {
     pub id: ID,
@@ -27,6 +27,7 @@ impl TopoMutationRoot {
 
         match feature {
             TopoFeatureInput::Image(input) => insert_image_feature(&transaction, input, topo_id).await?,
+            TopoFeatureInput::Path(input) => insert_path_feature(&transaction, input, topo_id).await?,
         }
 
         transaction.commit().await?;
@@ -45,6 +46,32 @@ async fn insert_image_feature(t: &Transaction<'_>, input: TopoImageFeatureInput,
         VALUES ($1, $2, $3, $4)
         ",
         &[&source_crop, &dest_crop, &input.image_id, &topo_id]).await?;
+
+    Ok(())
+}
+
+async fn insert_path_feature(t: &Transaction<'_>, input: TopoPathFeatureInput, topo_id: i32) -> Result<()> {
+    match input.geometry {
+        TopoPathGeometryInput::BasisSpline(BasisSplineInput {
+            degree,
+            knots,
+            control_points,
+        }) => {
+            let climb_id = i32::try_from(input.climb_id)?;
+            let degree = i32::try_from(degree)?;
+            let pg_points: Vec<_> = control_points
+                .into_iter()
+                .map(geo_types::Point::<f64>::from)
+                .collect();
+
+            t.execute(
+                "
+                INSERT INTO topo_path_features (geometry, climb_id, topo_id)
+                VALUES (ROW($1, $2, $3)::basis_spline, $4, $5)
+                ",
+                &[&degree, &knots, &pg_points, &climb_id, &topo_id]).await?;
+        }
+    }
 
     Ok(())
 }
