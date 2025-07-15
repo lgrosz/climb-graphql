@@ -1,10 +1,15 @@
-use async_graphql::{InputObject, Object, OneofObject, Union, ID};
+use async_graphql::{InputObject, Interface, Object, OneofObject, Union, ID};
 
 use crate::schema::{
     climb::Climb,
     types::{geometry::Rect, spline::{BasisSpline, BasisSplineInput}},
     Image,
 };
+
+pub enum FeatureId {
+    Path(i32),
+    Image(i32),
+}
 
 #[derive(Union)]
 #[graphql(name = "TopoPathGeometry")]
@@ -13,12 +18,26 @@ pub enum PathGeometry {
 }
 
 pub struct PathFeature {
+    pub id: FeatureId,
     pub climb_id: i32,
     pub geometry: PathGeometry,
 }
 
+impl From<&FeatureId> for ID {
+    fn from(value: &FeatureId) -> Self {
+        match value {
+            FeatureId::Path(id) => ID(format!("path/{}", id)),
+            FeatureId::Image(id) => ID(format!("image/{}", id)),
+        }
+    }
+}
+
 #[Object(name = "TopoPathFeature")]
 impl PathFeature {
+    async fn id(&self) -> ID {
+        (&self.id).into()
+    }
+
     async fn climb(&self) -> Climb {
         Climb(self.climb_id)
     }
@@ -29,6 +48,7 @@ impl PathFeature {
 }
 
 pub struct ImageFeature {
+    pub id: FeatureId,
     pub image_id: i32,
     pub source: Option<Rect>,
     pub dest: Rect,
@@ -36,6 +56,10 @@ pub struct ImageFeature {
 
 #[Object(name = "TopoImageFeature")]
 impl ImageFeature {
+    async fn id(&self) -> ID {
+        (&self.id).into()
+    }
+
     async fn image(&self) -> Image {
         Image(self.image_id)
     }
@@ -49,7 +73,10 @@ impl ImageFeature {
     }
 }
 
-#[derive(Union)]
+#[derive(Interface)]
+#[graphql(
+    field(name = "id", ty = "ID"),
+)]
 pub enum TopoFeature {
     Path(PathFeature),
     Image(ImageFeature),

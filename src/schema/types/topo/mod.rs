@@ -1,7 +1,7 @@
 use async_graphql::{Context, Error, Object, Result, ID};
 
 use crate::AppData;
-use features::{ImageFeature, PathFeature, PathGeometry, TopoFeature};
+use features::{FeatureId, ImageFeature, PathFeature, PathGeometry, TopoFeature};
 
 use super::{geometry::{Point2D, Rect}, spline::BasisSpline};
 
@@ -114,7 +114,7 @@ async fn get_path_features(client: &deadpool::managed::Object<deadpool_postgres:
             // TODO I tried to implement FromSql for BasisSpline, but I was having trouble
             // getting the data out of the underlying composite-type
             "
-            SELECT climb_id, (geometry).*
+            SELECT id, climb_id, (geometry).*
             FROM topo_path_features
             WHERE topo_id = $1
             ",
@@ -125,6 +125,7 @@ async fn get_path_features(client: &deadpool::managed::Object<deadpool_postgres:
     let features: Vec<TopoFeature> = result
         .into_iter()
         .map(|row| {
+            let id = FeatureId::Path(row.get("id"));
             let climb_id: i32 = row.get("climb_id");
             let degree: i32 = row.get("degree");
             let degree: u32 = u32::try_from(degree)
@@ -139,7 +140,7 @@ async fn get_path_features(client: &deadpool::managed::Object<deadpool_postgres:
             let basis_spline = BasisSpline { degree, knots, control_points };
             let geometry: PathGeometry = PathGeometry::BasisSpline(basis_spline);
 
-            Ok(TopoFeature::Path(PathFeature { climb_id, geometry }))
+            Ok(TopoFeature::Path(PathFeature { id, climb_id, geometry }))
         })
     .collect::<Result<Vec<TopoFeature>, async_graphql::Error>>()?;
 
@@ -150,7 +151,7 @@ async fn get_image_features(client: &deadpool::managed::Object<deadpool_postgres
     let result = client
         .query(
             "
-            SELECT image_id, source_crop, dest_crop
+            SELECT id, image_id, source_crop, dest_crop
             FROM topo_image_features
             WHERE topo_id = $1
             ",
@@ -161,6 +162,7 @@ async fn get_image_features(client: &deadpool::managed::Object<deadpool_postgres
     let features: Vec<TopoFeature> = result
         .into_iter()
         .map(|row| {
+            let id = FeatureId::Image(row.get("id"));
             let image_id = row.get("image_id");
 
             let source: Option<Rect> = row
@@ -171,7 +173,7 @@ async fn get_image_features(client: &deadpool::managed::Object<deadpool_postgres
                 .get::<_, geo_types::Rect>("dest_crop")
                 .into();
 
-            Ok(TopoFeature::Image(ImageFeature { image_id, source, dest }))
+            Ok(TopoFeature::Image(ImageFeature { id, image_id, source, dest }))
         })
     .collect::<Result<Vec<TopoFeature>, async_graphql::Error>>()?;
 
