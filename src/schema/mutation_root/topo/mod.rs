@@ -9,6 +9,32 @@ pub struct TopoMutationRoot {
 
 #[Object]
 impl TopoMutationRoot {
+    async fn title(
+        &self,
+        ctx: &Context<'_>,
+        title: Option<String>,
+    ) -> Result<Topo> {
+        let appdata = ctx.data::<AppData>()?;
+        let client = match &appdata.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let topo_id: i32 = self.id.0.parse()?;
+
+        client.execute(
+            "
+            UPDATE topos
+            SET title = $1
+            WHERE id = $2;
+            ",
+            &[&title, &topo_id]).await?;
+
+        Ok(Topo(topo_id))
+    }
+
     async fn add_feature(
         &self,
         ctx: &Context<'_>,
