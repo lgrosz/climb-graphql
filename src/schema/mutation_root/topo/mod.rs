@@ -1,7 +1,10 @@
 use async_graphql::{Context, Object, Result, ID};
 use deadpool_postgres::Transaction;
+use feature::PathFeatureMutationRoot;
 
 use crate::{schema::types::{spline::BasisSplineInput, topo::{features::{FeatureId, TopoFeatureInput, TopoImageFeatureInput, TopoPathFeatureInput, TopoPathGeometryInput}, Topo}}, AppData};
+
+pub mod feature;
 
 pub struct TopoMutationRoot {
     pub id: ID,
@@ -86,6 +89,11 @@ impl TopoMutationRoot {
         transaction.commit().await?;
 
         Ok(Topo(topo_id))
+    }
+
+    async fn feature(&self, id: ID) -> feature::MutationRoot {
+        // TODO check topo_path_features where topo_id matches
+        feature::MutationRoot::Path(PathFeatureMutationRoot { id })
     }
 }
 
