@@ -846,6 +846,38 @@ impl QueryRoot {
 
         Ok(Topo(id))
     }
+
+    async fn topos_by_formation(
+        &self,
+        ctx: &Context<'_>,
+        id: ID,
+    ) -> Result<Vec<Topo>> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query("
+                SELECT t.id FROM topos AS t
+                    INNER JOIN topo_image_features AS tif ON t.id = tif.topo_id
+                    INNER JOIN images AS i ON i.id = tif.image_id
+                    INNER JOIN formations_in_image AS fii ON fii.image_id = i.id
+                WHERE fii.formation_id = $1;
+                ", &[&id])
+            .await?;
+
+        let topos = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Topo))
+            .collect::<Result<Vec<Topo>, _>>()?;
+
+        Ok(topos)
+    }
 }
 
 #[derive(OneofObject)]
