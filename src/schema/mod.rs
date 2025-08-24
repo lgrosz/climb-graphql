@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, ID};
 
-use area::Area;
 use climb::Climb;
 use formation::{Coordinate, Formation};
 use grade::GradeInput;
@@ -13,7 +12,6 @@ use types::topo::Topo;
 
 use crate::AppData;
 
-pub mod area;
 pub mod climb;
 pub mod formation;
 pub mod grade;
@@ -241,102 +239,6 @@ impl Climber {
 
 #[Object]
 impl QueryRoot {
-    async fn areas(
-        &self,
-        ctx: &Context<'_>,
-    ) -> Result<Vec<Area>> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let result = client
-            .query("SELECT areas.id FROM areas", &[])
-            .await?;
-
-        let areas = result
-            .into_iter()
-            .map(|row| row.try_get(0).map(Area))
-            .collect::<Result<Vec<Area>, _>>()?;
-
-        Ok(areas)
-    }
-
-    async fn areas_by_parent(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
-    ) -> Result<Vec<Area>> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let result = match parent {
-            Some(AreaParentInput::Area(area_id)) => {
-                client
-                    .query(
-                        "
-                        SELECT a.id
-                        FROM areas AS a
-                        INNER JOIN area_closures AS sa ON a.id = sa.area_id
-                        WHERE sa.super_area_id = $1
-                        ",
-                        &[&area_id],
-                    )
-                    .await?
-            }
-            None => {
-                client
-                    .query(
-                        "
-                        SELECT a.id
-                        FROM areas AS a
-                        LEFT JOIN area_closures AS sa ON a.id = sa.area_id
-                        WHERE sa.super_area_id IS NULL
-                        ",
-                        &[],
-                    )
-                    .await?
-            }
-        };
-
-        let areas = result
-            .into_iter()
-            .map(|row| row.try_get(0).map(Area))
-            .collect::<Result<Vec<Area>, _>>()?;
-
-        Ok(areas)
-    }
-
-    async fn area(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Area id")] id: ID,
-    ) -> Result<Area> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        // Just check for existence
-        client
-            .query_one("SELECT 1 FROM areas WHERE id = $1", &[&id])
-            .await?;
-
-        Ok(Area(id))
-    }
-
     async fn climbs(
         &self,
         ctx: &Context<'_>,
@@ -375,19 +277,6 @@ impl QueryRoot {
         };
 
         let result = match parent {
-            Some(ClimbParentInput::Area(area_id)) => {
-                client
-                    .query(
-                        "
-                        SELECT c.id
-                        FROM climbs AS c
-                        INNER JOIN climb_super_area_closures AS sa ON c.id = sa.climb_id
-                        WHERE sa.super_area_id = $1
-                        ",
-                        &[&area_id],
-                    )
-                    .await?
-            }
             Some(ClimbParentInput::Formation(formation_id)) => {
                 client
                     .query(
@@ -531,19 +420,6 @@ impl QueryRoot {
         };
 
         let result = match parent {
-            Some(FormationParentInput::Area(area_id)) => {
-                client
-                    .query(
-                        "
-                        SELECT c.id
-                        FROM formations AS c
-                        INNER JOIN formation_super_area_closures AS sa ON c.id = sa.formation_id
-                        WHERE sa.super_area_id = $1
-                        ",
-                        &[&area_id],
-                    )
-                    .await?
-            }
             Some(FormationParentInput::Formation(formation_id)) => {
                 client
                     .query(
@@ -705,19 +581,12 @@ impl QueryRoot {
 }
 
 #[derive(OneofObject)]
-enum AreaParentInput {
-    Area(i32),
-}
-
-#[derive(OneofObject)]
 enum ClimbParentInput {
-    Area(i32),
     Formation(i32),
 }
 
 #[derive(OneofObject)]
 enum FormationParentInput {
-    Area(i32),
     Formation(i32),
 }
 
@@ -725,147 +594,6 @@ pub struct MutationRoot;
 
 #[Object]
 impl MutationRoot {
-    async fn add_area(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Area name")] name: Option<String>,
-        #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
-    ) -> Result<Area> {
-        let data = ctx.data::<AppData>()?;
-        let mut client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let transaction = client.transaction().await?;
-
-        let area_id = transaction
-            .query_one(
-                "INSERT INTO areas (name) VALUES ($1) RETURNING id",
-                &[&name],
-            )
-            .await?
-            .get::<_, i32>(0);
-
-        if let Some(parent) = parent {
-            match parent {
-                AreaParentInput::Area(parent_id) => {
-                    transaction
-                        .execute(
-                            "
-                            INSERT INTO area_closures (area_id, super_area_id)
-                            VALUES ($1, $2)
-                            ",
-                            &[&area_id, &parent_id],
-                        )
-                        .await?;
-                }
-            }
-        }
-
-        transaction.commit().await?;
-
-        Ok(Area(area_id))
-    }
-
-    async fn rename_area(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Area id")] id: ID,
-        #[graphql(desc = "Area name")] name: Option<String>,
-    ) -> Result<Area> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let area_id = client
-            .query_one(
-                "UPDATE areas SET name = $1 WHERE id = $2 RETURNING id",
-                &[&name, &id],
-            )
-            .await?
-            .get::<_, i32>(0);
-
-        Ok(Area(area_id))
-    }
-
-    async fn describe_area(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Area id")] id: ID,
-        #[graphql(desc = "Area description")] description: Option<String>,
-    ) -> Result<Area> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let area_id = client
-            .query_one(
-                "UPDATE areas SET description = $1 WHERE id = $2 RETURNING id",
-                &[&description, &id],
-            )
-            .await?
-            .get::<_, i32>(0);
-
-        Ok(Area(area_id))
-    }
-
-    async fn move_area(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Area id")] id: ID,
-        #[graphql(desc = "Area parent")] parent: Option<AreaParentInput>,
-    ) -> Result<Area> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        if let Some(parent) = parent {
-            match parent {
-                AreaParentInput::Area(area_id) => {
-                    client
-                        .execute(
-                            "
-                            INSERT INTO area_closures (area_id, super_area_id)
-                            VALUES ($1, $2)
-                            ON CONFLICT (area_id)
-                            DO UPDATE SET
-                            super_area_id = EXCLUDED.super_area_id
-                            ",
-                            &[&id, &area_id],
-                        )
-                        .await?;
-                }
-            }
-        } else {
-            client
-                .execute(
-                    "DELETE FROM area_closures WHERE area_id = $1",
-                    &[&id],
-                )
-                .await?;
-        }
-
-        Ok(Area(id))
-    }
-
     async fn describe_formation(
         &self,
         ctx: &Context<'_>,
@@ -890,27 +618,6 @@ impl MutationRoot {
             .get::<_, i32>(0);
 
         Ok(Formation(formation_id))
-    }
-
-    async fn remove_area(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Area id")] id: ID,
-    ) -> Result<Area> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        client
-            .execute("DELETE FROM areas WHERE id = $1", &[&id])
-            .await?;
-
-        Ok(Area(id))
     }
 
     async fn add_climb(
@@ -939,15 +646,6 @@ impl MutationRoot {
 
         if let Some(parent) = parent {
             match parent {
-                ClimbParentInput::Area(area_id) => {
-                    transaction
-                        .execute(
-                            "INSERT INTO climb_super_area_closures (climb_id, super_area_id) VALUES ($1, $2)",
-                            &[&id, &area_id],
-                        )
-                        .await?;
-                }
-
                 ClimbParentInput::Formation(formation_id) => {
                     transaction
                         .execute(
@@ -1035,28 +733,6 @@ impl MutationRoot {
 
         if let Some(parent) = parent {
             match parent {
-                ClimbParentInput::Area(area_id) => {
-                    transaction
-                        .execute(
-                            "DELETE FROM climb_super_formation_closures WHERE climb_id = $1",
-                            &[&id],
-                        )
-                        .await?;
-
-                    transaction
-                        .execute(
-                            "
-                            INSERT INTO climb_super_area_closures (climb_id, super_area_id)
-                            VALUES ($1, $2)
-                            ON CONFLICT (climb_id)
-                            DO UPDATE SET
-                            super_area_id = EXCLUDED.super_area_id
-                            ",
-                            &[&id, &area_id],
-                        )
-                        .await?;
-                }
-
                 ClimbParentInput::Formation(formation_id) => {
                     transaction
                         .execute(
@@ -1259,15 +935,6 @@ impl MutationRoot {
 
         if let Some(parent) = parent {
             match parent {
-                FormationParentInput::Area(area_id) => {
-                    transaction
-                        .execute(
-                            "INSERT INTO formation_super_area_closures (formation_id, super_area_id) VALUES ($1, $2)",
-                            &[&id, &area_id],
-                        )
-                        .await?;
-                }
-
                 FormationParentInput::Formation(formation_id) => {
                     transaction
                         .execute(
@@ -1358,28 +1025,6 @@ impl MutationRoot {
 
         if let Some(parent) = parent {
             match parent {
-                FormationParentInput::Area(area_id) => {
-                    transaction
-                        .execute(
-                            "DELETE FROM formation_super_formation_closures WHERE formation_id = $1",
-                            &[&id],
-                        )
-                        .await?;
-
-                    transaction
-                        .execute(
-                            "
-                            INSERT INTO formation_super_area_closures (formation_id, super_area_id)
-                            VALUES ($1, $2)
-                            ON CONFLICT (formation_id)
-                            DO UPDATE SET
-                            super_area_id = EXCLUDED.super_area_id
-                            ",
-                            &[&id, &area_id],
-                        )
-                        .await?;
-                }
-
                 FormationParentInput::Formation(formation_id) => {
                     transaction
                         .execute(

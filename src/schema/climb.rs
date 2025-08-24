@@ -1,6 +1,5 @@
 use async_graphql::{Context, Object, Result, Union, ID};
 
-use crate::schema::area::Area;
 use crate::schema::formation::Formation;
 use crate::AppData;
 
@@ -8,7 +7,6 @@ use super::grade::Grade;
 
 #[derive(Union)]
 enum ClimbParent {
-    Area(Area),
     Formation(Formation),
 }
 
@@ -114,9 +112,6 @@ impl Climb {
                 row.try_get::<_, Option<i32>>(0)?,
                 row.try_get::<_, Option<i32>>(1)?,
             ) {
-                (Some(super_area_id), _) => {
-                    return Ok(Some(ClimbParent::Area(Area(super_area_id))))
-                }
                 (_, Some(super_formation_id)) => {
                     return Ok(Some(ClimbParent::Formation(Formation(super_formation_id))))
                 }

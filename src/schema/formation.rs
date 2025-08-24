@@ -1,6 +1,5 @@
 use async_graphql::{Context, InputObject, Object, Result, SimpleObject, Union, ID};
 
-use crate::schema::area::Area;
 use crate::schema::climb::Climb;
 use crate::AppData;
 
@@ -15,7 +14,6 @@ pub struct Coordinate {
 
 #[derive(Union)]
 enum FormationParent {
-    Area(Area),
     Formation(Formation),
 }
 
@@ -106,17 +104,11 @@ impl Formation {
             .await?;
 
         if let Some(row) = result {
-            match (
+            if let (_, Some(super_formation_id)) = (
                 row.try_get::<_, Option<i32>>(0)?,
                 row.try_get::<_, Option<i32>>(1)?,
             ) {
-                (Some(super_area_id), _) => {
-                    return Ok(Some(FormationParent::Area(Area(super_area_id))))
-                }
-                (_, Some(super_formation_id)) => {
-                    return Ok(Some(FormationParent::Formation(Formation(super_formation_id))))
-                }
-                _ => {}
+                return Ok(Some(FormationParent::Formation(Formation(super_formation_id))))
             }
         }
 
