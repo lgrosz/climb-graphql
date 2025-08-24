@@ -4,9 +4,8 @@ use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, ID};
 
 use area::Area;
 use climb::Climb;
-use date_interval::DateInterval;
 use formation::{Coordinate, Formation};
-use grade::{Grade, GradeInput};
+use grade::GradeInput;
 use postgres_types::ToSql;
 use mutation_root::image::ImageMutationRoot;
 use mutation_root::topo::TopoMutationRoot;
@@ -16,7 +15,6 @@ use crate::AppData;
 
 pub mod area;
 pub mod climb;
-pub mod date_interval;
 pub mod formation;
 pub mod grade;
 pub mod fontainebleau_grade;
@@ -241,134 +239,6 @@ impl Climber {
     }
 }
 
-struct Ascent(pub i32);
-
-#[Object]
-impl Ascent {
-    async fn id(&self) -> ID {
-        self.0.into()
-    }
-
-    async fn climb(
-        &self,
-        ctx: &Context<'_>,
-    ) -> Result<Climb> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let result = client
-            .query_one(
-                "
-                SELECT climb_id
-                FROM ascents
-                WHERE id = $1
-                ",
-                &[&self.0],
-            )
-            .await?;
-
-        let climb_id: i32 = result.try_get(0)?;
-
-        Ok(Climb(climb_id))
-    }
-
-    async fn climber(
-        &self,
-        ctx: &Context<'_>,
-    ) -> Result<Climber> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let result = client
-            .query_one(
-                "
-                SELECT climber_id
-                FROM ascents
-                WHERE id = $1
-                ",
-                &[&self.0],
-            )
-            .await?;
-
-        let climber_id: i32 = result.try_get(0)?;
-
-        Ok(Climber(climber_id))
-    }
-
-    async fn date_window(
-        &self,
-        ctx: &Context<'_>,
-    ) -> Result<Option<DateInterval>> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let result = client
-            // TODO sfackler/rust-postgres-range#18
-            .query_one(
-                "
-                SELECT date_window::TEXT
-                FROM ascents
-                WHERE id = $1
-                ",
-                &[&self.0],
-            )
-            .await?;
-
-        let value: Option<DateInterval> = result.try_get(0)?;
-
-        Ok(value)
-    }
-
-    async fn grades(
-        &self,
-        ctx: &Context<'_>,
-    ) -> Result<Vec<Grade>> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let value: Vec<Grade> = client
-            // TODO since grade doesn't implement binary functions, we must request the text
-            // format, when grade _does_ implement these, the ::TEXT is not needed
-            .query(
-                "
-                SELECT grade::TEXT
-                FROM ascent_grades
-                WHERE ascent_id = $1
-                ",
-                &[&self.0],
-            )
-            .await?
-            .into_iter()
-            .filter_map(|row| {
-                let grade_str: String = row.get(0);
-                grade_str.parse::<Grade>().ok()
-            })
-            .collect();
-
-        Ok(value)
-    }
-}
-
 #[Object]
 impl QueryRoot {
     async fn areas(
@@ -465,52 +335,6 @@ impl QueryRoot {
             .await?;
 
         Ok(Area(id))
-    }
-
-    async fn ascents(
-        &self,
-        ctx: &Context<'_>,
-    ) -> Result<Vec<Ascent>> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let result = client
-            .query("SELECT ascents.id FROM ascents", &[])
-            .await?;
-
-        let ascents = result
-            .into_iter()
-            .map(|row| row.try_get(0).map(Ascent))
-            .collect::<Result<Vec<Ascent>, _>>()?;
-
-        Ok(ascents)
-    }
-
-    async fn ascent(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Ascent id")] id: ID,
-    ) -> Result<Ascent> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        // Just check for existence
-        client
-            .query_one("SELECT 1 FROM ascents WHERE id = $1", &[&id])
-            .await?;
-
-        Ok(Ascent(id))
     }
 
     async fn climbs(
@@ -946,69 +770,6 @@ impl MutationRoot {
         Ok(Area(area_id))
     }
 
-    async fn add_ascent(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Climb ID")] climb_id: ID,
-        #[graphql(desc = "Climber ID")] climber_id: ID,
-        #[graphql(desc = "Date window")] date_window: Option<DateInterval>,
-    ) -> Result<Ascent> {
-        let climb_id: i32 = climb_id.0.parse().map_err(|_| "Invalid ID format")?;
-        let climber_id: i32 = climber_id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let ascent_id = client
-            .query_one(
-                "
-                INSERT INTO ascents (climb_id, climber_id, date_window)
-                VALUES ($1, $2, $3)
-                RETURNING id
-                ",
-                &[&climb_id, &climber_id, &date_window],
-            )
-            .await?
-            .get::<_, i32>(0);
-
-        Ok(Ascent(ascent_id))
-    }
-
-    async fn date_ascent(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Ascent ID")] id: ID,
-        #[graphql(desc = "Area name")] date_interval: Option<DateInterval>,
-    ) -> Result<Ascent> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let ascent_id = client
-            .query_one(
-                "
-                UPDATE ascents
-                SET date_window = $1
-                WHERE id = $2
-                RETURNING id
-                ",
-                &[&date_interval, &id],
-            )
-            .await?
-            .get::<_, i32>(0);
-
-        Ok(Ascent(ascent_id))
-    }
-
     async fn rename_area(
         &self,
         ctx: &Context<'_>,
@@ -1150,27 +911,6 @@ impl MutationRoot {
             .await?;
 
         Ok(Area(id))
-    }
-
-    async fn remove_ascent(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Ascent id")] id: ID,
-    ) -> Result<Ascent> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        client
-            .execute("DELETE FROM ascents WHERE id = $1", &[&id])
-            .await?;
-
-        Ok(Ascent(id))
     }
 
     async fn add_climb(
@@ -1360,34 +1100,6 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
-    async fn add_ascent_grade(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Ascent ID")] id: ID,
-        #[graphql(desc = "Grade")] grade: GradeInput,
-    ) -> Result<Ascent> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        client
-            .execute(
-                "
-                INSERT INTO ascent_grades (ascent_id, grade)
-                VALUES ($1, $2) ON CONFLICT DO NOTHING
-                ",
-                &[&id, &(grade)],
-            )
-            .await?;
-
-        Ok(Ascent(id))
-    }
-
     async fn add_climb_grade(
         &self,
         ctx: &Context<'_>,
@@ -1443,34 +1155,6 @@ impl MutationRoot {
             .get::<_, i32>(0);
 
         Ok(Climber(id))
-    }
-
-    async fn remove_ascent_grade(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Ascent ID")] id: ID,
-        #[graphql(desc = "Grade")] grade: GradeInput,
-    ) -> Result<Ascent> {
-        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        client
-            .execute(
-                "
-                DELETE FROM ascent_grades
-                WHERE ascent_id = $1 AND grade = $2
-                ",
-                &[&id, &(grade)],
-            )
-            .await?;
-
-        Ok(Ascent(id))
     }
 
     async fn remove_climb_grade(
