@@ -239,6 +239,52 @@ impl Climber {
 
 #[Object]
 impl QueryRoot {
+    async fn regions(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Vec<types::region::Region>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query("SELECT id FROM climb.regions", &[])
+            .await?;
+
+        let regions = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(types::region::Region))
+            .collect::<Result<Vec<types::region::Region>, _>>()?;
+
+        Ok(regions)
+    }
+
+    async fn region(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Region id")] id: ID,
+    ) -> Result<types::region::Region> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        // Just check for existence
+        client
+            .query_one("SELECT 1 FROM climb.regions WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(types::region::Region(id))
+    }
+
     async fn climbs(
         &self,
         ctx: &Context<'_>,
