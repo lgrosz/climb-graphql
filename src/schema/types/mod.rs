@@ -1,3 +1,4 @@
+pub mod crag;
 pub mod geometry;
 pub mod region;
 pub mod spline;
