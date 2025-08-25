@@ -336,6 +336,28 @@ impl QueryRoot {
         Ok(types::crag::Crag(id))
     }
 
+    async fn sector(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Sector id")] id: ID,
+    ) -> Result<types::sector::Sector> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        // Just check for existence
+        client
+            .query_one("SELECT 1 FROM climb.sectors WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(types::sector::Sector(id))
+    }
+
     async fn climbs(
         &self,
         ctx: &Context<'_>,
