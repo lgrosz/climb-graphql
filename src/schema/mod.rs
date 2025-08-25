@@ -285,6 +285,57 @@ impl QueryRoot {
         Ok(types::region::Region(id))
     }
 
+    async fn crags(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Vec<types::crag::Crag>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query(
+                "
+                SELECT id
+                FROM climb.crags
+                WHERE region_id IS NULL
+                ", &[])
+            .await?;
+
+        let crags = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(types::crag::Crag))
+            .collect::<Result<Vec<types::crag::Crag>, _>>()?;
+
+        Ok(crags)
+    }
+
+    async fn crag(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Crag id")] id: ID,
+    ) -> Result<types::crag::Crag> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        // Just check for existence
+        client
+            .query_one("SELECT 1 FROM climb.crags WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(types::crag::Crag(id))
+    }
+
     async fn climbs(
         &self,
         ctx: &Context<'_>,
