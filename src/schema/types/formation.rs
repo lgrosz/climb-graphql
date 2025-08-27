@@ -4,6 +4,10 @@ use crate::schema::climb::Climb;
 use crate::schema::Image;
 use crate::AppData;
 
+use super::crag::Crag;
+use super::region::Region;
+use super::sector::Sector;
+
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "CoordinateInput")]
 pub struct Coordinate {
@@ -13,7 +17,9 @@ pub struct Coordinate {
 
 #[derive(Union)]
 enum FormationParent {
-    Formation(Formation),
+    Region(Region),
+    Crag(Crag),
+    Sector(Sector),
 }
 
 pub struct Formation(pub i32);
@@ -34,7 +40,7 @@ impl Formation {
         };
 
         let result = client
-            .query_one("SELECT name FROM formations WHERE id = $1", &[&self.0])
+            .query_one("SELECT name FROM climb.formations WHERE id = $1", &[&self.0])
             .await?;
         let value: Option<&str> = result.try_get(0)?;
 
@@ -51,7 +57,7 @@ impl Formation {
         };
 
         let result = client
-            .query_one("SELECT description FROM formations WHERE id = $1", &[&self.0])
+            .query_one("SELECT description FROM climb.formations WHERE id = $1", &[&self.0])
             .await?;
         let value: Option<&str> = result.try_get(0)?;
 
@@ -68,7 +74,7 @@ impl Formation {
         };
 
         let maybe_point = client
-            .query_one("SELECT location FROM formations WHERE id = $1", &[&self.0])
+            .query_one("SELECT location FROM climb.formations WHERE id = $1", &[&self.0])
             .await?
             .try_get::<_, Option<postgis::ewkb::Point>>(0)?;
 
@@ -82,54 +88,33 @@ impl Formation {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
+            None => return Err("Database connection is not available".into()),
         };
 
-        let result = client
-            .query_opt(
-                // TODO The JOIN is unecessary since we know only one can exist given the checks.
-                // Is there a more effecient method?
+        let row = client
+            .query_one(
                 "
-                SELECT sac.super_area_id, sfc.super_formation_id
-                FROM formation_super_area_closures sac
-                FULL JOIN formation_super_formation_closures sfc 
-                ON sac.formation_id = sfc.formation_id
-                WHERE sac.formation_id = $1 OR sfc.formation_id = $1
+                SELECT region_id, crag_id, sector_id
+                FROM climb.formations
+                WHERE id = $1
                 ",
                 &[&self.0],
             )
             .await?;
 
-        if let Some(row) = result {
-            if let (_, Some(super_formation_id)) = (
-                row.try_get::<_, Option<i32>>(0)?,
-                row.try_get::<_, Option<i32>>(1)?,
-            ) {
-                return Ok(Some(FormationParent::Formation(Formation(super_formation_id))))
-            }
-        }
+        let region_id: Option<i32> = row.try_get(0)?;
+        let crag_id: Option<i32> = row.try_get(1)?;
+        let sector_id: Option<i32> = row.try_get(2)?;
 
-        Ok(None)
-    }
-
-    async fn formations(&self, ctx: &Context<'_>) -> Result<Vec<Formation>> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
+        let parent = match (region_id, crag_id, sector_id) {
+            (Some(id), None, None) => Some(FormationParent::Region(Region(id))),
+            (None, Some(id), None) => Some(FormationParent::Crag(Crag(id))),
+            (None, None, Some(id)) => Some(FormationParent::Sector(Sector(id))),
+            (None, None, None) => None,
+            _ => return Err("Formation has multiple parents, which violates schema".into()),
         };
 
-        let result = client.query("SELECT formation_id FROM formation_super_formation_closures WHERE super_formation_id = $1", &[&self.0]).await?;
-        let formations = result
-            .into_iter()
-            .map(|row| row.try_get(0).map(Formation))
-            .collect::<Result<Vec<Formation>, _>>()?;
-
-        Ok(formations)
+        Ok(parent)
     }
 
     async fn climbs(&self, ctx: &Context<'_>) -> Result<Vec<Climb>> {
@@ -142,11 +127,9 @@ impl Formation {
         };
 
         let result = client
-            .query(
-                "SELECT climb_id FROM climb_super_formation_closures WHERE super_formation_id = $1",
-                &[&self.0],
-            )
+            .query("SELECT id FROM climb.climbs WHERE formation_id = $1", &[&self.0])
             .await?;
+
         let climbs = result
             .into_iter()
             .map(|row| row.try_get(0).map(Climb))
@@ -165,10 +148,7 @@ impl Formation {
         };
 
         let result = client
-            .query(
-                "SELECT image_id FROM formations_in_image WHERE formation_id = $1",
-                &[&self.0],
-            )
+            .query("SELECT image_id FROM climb.formations_in_image WHERE formation_id = $1", &[&self.0])
             .await?;
 
         let images = result
