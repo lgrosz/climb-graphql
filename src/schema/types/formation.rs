@@ -1,9 +1,8 @@
 use async_graphql::{Context, InputObject, Object, Result, SimpleObject, Union, ID};
 
 use crate::schema::climb::Climb;
+use crate::schema::Image;
 use crate::AppData;
-
-use super::Image;
 
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "CoordinateInput")]
