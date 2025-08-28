@@ -1,9 +1,9 @@
 use async_graphql::{Context, InputObject, Object, Result, SimpleObject, Union, ID};
 
-use crate::schema::climb::Climb;
 use crate::schema::Image;
 use crate::AppData;
 
+use super::climb::Climb;
 use super::crag::Crag;
 use super::region::Region;
 use super::sector::Sector;

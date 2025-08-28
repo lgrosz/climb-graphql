@@ -1,8 +1,8 @@
 use async_graphql::{Context, Object, Result, Union, ID};
 
-use crate::AppData;
+use crate::{schema::grade::Grade, AppData};
 
-use super::{grade::Grade, types::formation::Formation};
+use super::formation::Formation;
 
 #[derive(Union)]
 enum ClimbParent {
