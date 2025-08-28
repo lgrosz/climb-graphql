@@ -2,7 +2,7 @@ use async_graphql::{Context, Object, ID, Result};
 
 use crate::AppData;
 
-use super::{region::Region, sector::Sector};
+use super::{formation::Formation, region::Region, sector::Sector};
 
 pub struct Crag(pub i32);
 
@@ -63,6 +63,25 @@ impl Crag {
             .await?;
 
         Ok(rows.into_iter().map(|row| Sector(row.get(0))).collect())
+    }
+
+    async fn formations(&self, ctx: &Context<'_>) -> Result<Vec<Formation>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let rows = client
+            .query(
+                "SELECT id FROM climb.formations WHERE crag_id = $1 ORDER BY name",
+                &[&self.0],
+            )
+            .await?;
+
+        Ok(rows.into_iter().map(|row| Formation(row.get(0))).collect())
     }
 }
 
