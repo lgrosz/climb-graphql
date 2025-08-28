@@ -2,10 +2,13 @@ use async_graphql::{Context, Object, Result, Union, ID};
 
 use crate::{schema::grade::Grade, AppData};
 
-use super::formation::Formation;
+use super::{crag::Crag, formation::Formation, region::Region, sector::Sector};
 
 #[derive(Union)]
 enum ClimbParent {
+    Region(Region),
+    Crag(Crag),
+    Sector(Sector),
     Formation(Formation),
 }
 
@@ -27,7 +30,7 @@ impl Climb {
         };
 
         let result = client
-            .query_one("SELECT name FROM climbs WHERE id = $1", &[&self.0])
+            .query_one("SELECT name FROM climb.climbs WHERE id = $1", &[&self.0])
             .await?;
         let value: Option<&str> = result.try_get(0)?;
 
@@ -44,7 +47,7 @@ impl Climb {
         };
 
         let result = client
-            .query_one("SELECT description FROM climbs WHERE id = $1", &[&self.0])
+            .query_one("SELECT description FROM climb.climbs WHERE id = $1", &[&self.0])
             .await?;
         let value: Option<&str> = result.try_get(0)?;
 
@@ -55,69 +58,64 @@ impl Climb {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
+            None => return Err("Database connection is not available".into()),
         };
 
-        let value: Vec<Grade> = client
-            // TODO since grade doesn't implement binary functions, we must request the text
-            // format, when grade _does_ implement these, the ::TEXT is not needed
-            .query(
+        let row = client
+            // Cast to TEXT[], if at some point there are Rust bindings for pg_climb, then this can
+            // be improved
+            .query_one(
                 "
-                SELECT grade::TEXT
-                FROM climb_grades
-                WHERE climb_id = $1
+                SELECT grades::TEXT[]
+                FROM climb.climbs
+                WHERE id = $1
                 ",
                 &[&self.0],
             )
-            .await?
+            .await?;
+
+        let grade_strs: Vec<String> = row.get(0);
+
+        let grades: Vec<Grade> = grade_strs
             .into_iter()
-            .filter_map(|row| {
-                let grade_str: String = row.get(0);
-                grade_str.parse::<Grade>().ok()
-            })
+            .filter_map(|s| s.parse::<Grade>().ok())
             .collect();
 
-        Ok(value)
+        Ok(grades)
     }
 
     async fn parent(&self, ctx: &Context<'_>) -> Result<Option<ClimbParent>> {
         let data = ctx.data::<AppData>()?;
         let client = match &data.pg_pool {
             Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
+            None => return Err("Database connection is not available".into()),
         };
 
-        let result = client
-            .query_opt(
-                // TODO The JOIN is unecessary since we know only one can exist given the checks.
-                // Is there a more effecient method?
+        let row = client
+            .query_one(
                 "
-                SELECT sac.super_area_id, sfc.super_formation_id
-                FROM climb_super_area_closures sac
-                FULL JOIN climb_super_formation_closures sfc 
-                ON sac.climb_id = sfc.climb_id
-                WHERE sac.climb_id = $1 OR sfc.climb_id = $1
+                SELECT region_id, crag_id, sector_id, formation_id
+                FROM climb.climbs
+                WHERE id = $1
                 ",
                 &[&self.0],
             )
             .await?;
 
-        if let Some(row) = result {
-            match (
-                row.try_get::<_, Option<i32>>(0)?,
-                row.try_get::<_, Option<i32>>(1)?,
-            ) {
-                (_, Some(super_formation_id)) => {
-                    return Ok(Some(ClimbParent::Formation(Formation(super_formation_id))))
-                }
-                _ => {}
-            }
-        }
+        let region_id: Option<i32> = row.try_get(0)?;
+        let crag_id: Option<i32> = row.try_get(1)?;
+        let sector_id: Option<i32> = row.try_get(2)?;
+        let formation_id: Option<i32> = row.try_get(3)?;
 
-        Ok(None)
+        let parent = match (region_id, crag_id, sector_id, formation_id) {
+            (Some(id), None, None, None) => Some(ClimbParent::Region(Region(id))),
+            (None, Some(id), None, None) => Some(ClimbParent::Crag(Crag(id))),
+            (None, None, Some(id), None) => Some(ClimbParent::Sector(Sector(id))),
+            (None, None, None, Some(id)) => Some(ClimbParent::Formation(Formation(id))),
+            (None, None, None, None) => None,
+            _ => return Err("Formation has multiple parents, which violates schema".into()),
+        };
+
+        Ok(parent)
     }
 }
