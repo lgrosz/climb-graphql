@@ -1,3 +1,4 @@
+pub mod climb;
 pub mod crag;
 pub mod formation;
 pub mod geometry;

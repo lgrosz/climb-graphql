@@ -1,8 +1,11 @@
 use async_graphql::{InputObject, Interface, Object, OneofObject, Union, ID};
 
 use crate::schema::{
-    climb::Climb,
-    types::{geometry::Rect, spline::{BasisSpline, BasisSplineInput}},
+    types::{
+        climb::Climb,
+        geometry::Rect,
+        spline::{BasisSpline, BasisSplineInput},
+    },
     Image,
 };
 

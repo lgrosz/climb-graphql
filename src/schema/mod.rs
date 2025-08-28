@@ -2,17 +2,16 @@ use std::fmt::Display;
 
 use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, ID};
 
-use climb::Climb;
 use grade::GradeInput;
 use postgres_types::ToSql;
 use mutation_root::image::ImageMutationRoot;
 use mutation_root::topo::TopoMutationRoot;
+use types::climb::Climb;
 use types::formation::{Coordinate, Formation};
 use types::topo::Topo;
 
 use crate::AppData;
 
-pub mod climb;
 pub mod grade;
 pub mod fontainebleau_grade;
 pub mod vermin_grade;
