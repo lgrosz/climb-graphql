@@ -358,59 +358,15 @@ impl QueryRoot {
         };
 
         let result = client
-            .query("SELECT formations.id FROM formations", &[])
+            .query(
+                "
+                SELECT formations.id
+                FROM climb.formations
+                WHERE region_id IS NULL
+                    AND crag_id IS NULL
+                    AND sector_id IS NULL
+                ", &[])
             .await?;
-
-        let formations = result
-            .into_iter()
-            .map(|row| row.try_get(0).map(Formation))
-            .collect::<Result<Vec<Formation>, _>>()?;
-
-        Ok(formations)
-    }
-
-    async fn formations_by_parent(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
-    ) -> Result<Vec<Formation>> {
-        let data = ctx.data::<AppData>()?;
-        let client = match &data.pg_pool {
-            Some(pool) => pool.get().await?,
-            None => {
-                return Err("Database connection is not available".into());
-            }
-        };
-
-        let result = match parent {
-            Some(FormationParentInput::Formation(formation_id)) => {
-                client
-                    .query(
-                        "
-                        SELECT c.id
-                        FROM formations AS c
-                        INNER JOIN formation_super_formation_closures AS sf ON c.id = sf.formation_id
-                        WHERE sf.super_formation_id = $1
-                        ",
-                        &[&formation_id],
-                    )
-                    .await?
-            }
-            None => {
-                client
-                    .query(
-                        "
-                        SELECT c.id
-                        FROM formations AS c
-                        LEFT JOIN formation_super_area_closures AS sa ON c.id = sa.formation_id
-                        LEFT JOIN formation_super_formation_closures AS sf ON c.id = sf.formation_id
-                        WHERE sa.super_area_id IS NULL AND sf.super_formation_id IS NULL
-                        ",
-                        &[],
-                    )
-                    .await?
-            }
-        };
 
         let formations = result
             .into_iter()
@@ -436,7 +392,7 @@ impl QueryRoot {
 
         // Just check for existence
         client
-            .query_one("SELECT 1 FROM formations WHERE id = $1", &[&id])
+            .query_one("SELECT 1 FROM climb.formations WHERE id = $1", &[&id])
             .await?;
 
         Ok(Formation(id))
