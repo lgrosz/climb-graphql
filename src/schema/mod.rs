@@ -156,7 +156,7 @@ impl Image {
             .query(
                 "
                 SELECT formation_id
-                FROM formations_in_image
+                FROM climb.formations_in_image
                 WHERE image_id = $1
                 ", &[&self.0]
             ).await?;
@@ -485,7 +485,7 @@ impl QueryRoot {
                 SELECT t.id FROM topos AS t
                     INNER JOIN topo_image_features AS tif ON t.id = tif.topo_id
                     INNER JOIN media.images AS i ON i.id = tif.image_id
-                    INNER JOIN formations_in_image AS fii ON fii.image_id = i.id
+                    INNER JOIN climb.formations_in_image AS fii ON fii.image_id = i.id
                 WHERE fii.formation_id = $1;
                 ", &[&id])
             .await?;
@@ -1020,7 +1020,7 @@ impl MutationRoot {
                     .parse()
                     .map_err(|_| "Invalid formation ID".to_string())?;
                 transaction.execute(
-                    "INSERT INTO formations_in_image (formation_id, image_id) VALUES ($1, $2)",
+                    "INSERT INTO climb.formations_in_image (formation_id, image_id) VALUES ($1, $2)",
                     &[&formation_id, &image.0],
                 ).await?;
             }
