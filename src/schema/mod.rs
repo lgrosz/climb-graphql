@@ -94,7 +94,7 @@ impl Image {
             .query_one(
                 "
                 SELECT alt
-                FROM images
+                FROM media.images
                 WHERE id = $1
                 ",
                 &[&self.0],
@@ -411,7 +411,7 @@ impl QueryRoot {
         };
 
         let result = client
-            .query("SELECT images.id FROM images", &[])
+            .query("SELECT images.id FROM media.images", &[])
             .await?;
 
         let images = result
@@ -438,7 +438,7 @@ impl QueryRoot {
 
         // Just check for existence
         client
-            .query_one("SELECT 1 FROM images WHERE id = $1", &[&id])
+            .query_one("SELECT 1 FROM media.images WHERE id = $1", &[&id])
             .await?;
 
         Ok(Image(id))
@@ -484,7 +484,7 @@ impl QueryRoot {
             .query("
                 SELECT t.id FROM topos AS t
                     INNER JOIN topo_image_features AS tif ON t.id = tif.topo_id
-                    INNER JOIN images AS i ON i.id = tif.image_id
+                    INNER JOIN media.images AS i ON i.id = tif.image_id
                     INNER JOIN formations_in_image AS fii ON fii.image_id = i.id
                 WHERE fii.formation_id = $1;
                 ", &[&id])
@@ -1008,7 +1008,7 @@ impl MutationRoot {
 
         let image = Image(
             transaction
-                .query_one("INSERT INTO images (alt) VALUES ($1) RETURNING id", &[&alt])
+                .query_one("INSERT INTO media.images (alt) VALUES ($1) RETURNING id", &[&alt])
                 .await?
                 .get::<_, i32>(0),
         );
