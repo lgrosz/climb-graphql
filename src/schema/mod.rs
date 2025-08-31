@@ -509,7 +509,9 @@ enum ClimbParentInput {
 
 #[derive(OneofObject)]
 enum FormationParentInput {
-    Formation(i32),
+    Region(ID),
+    Crag(ID),
+    Sector(ID),
 }
 
 pub struct MutationRoot;
@@ -533,7 +535,7 @@ impl MutationRoot {
 
         let formation_id = client
             .query_one(
-                "UPDATE formations SET description = $1 WHERE id = $2 RETURNING id",
+                "UPDATE climb.formations SET description = $1 WHERE id = $2 RETURNING id",
                 &[&description, &id],
             )
             .await?
@@ -791,23 +793,24 @@ impl MutationRoot {
 
         let id = transaction
             .query_one(
-                "INSERT INTO formations (name, location) VALUES ($1, $2) RETURNING id",
+                "INSERT INTO climb.formations (name, location) VALUES ($1, $2) RETURNING id",
                 &[&name, &point],
             )
             .await?
             .get::<_, i32>(0);
 
         if let Some(parent) = parent {
-            match parent {
-                FormationParentInput::Formation(formation_id) => {
-                    transaction
-                        .execute(
-                            "INSERT INTO formation_super_formation_closures (formation_id, super_formation_id) VALUES ($1, $2)",
-                            &[&id, &formation_id],
-                        )
-                        .await?;
-                }
-            }
+            let (column, id_str) = match parent {
+                FormationParentInput::Region(region_id) => ("region_id", region_id),
+                FormationParentInput::Crag(crag_id) => ("crag_id", crag_id),
+                FormationParentInput::Sector(sector_id) => ("sector_id", sector_id),
+            };
+
+            let sql = format!("UPDATE climb.formations SET {} = $2 WHERE id = $1", column);
+
+            transaction
+                .execute(&sql, &[&id, &id_str.parse::<i32>()?])
+                .await?;
         }
 
         transaction.commit().await?;
@@ -832,7 +835,7 @@ impl MutationRoot {
 
         let id = client
             .query_one(
-                "UPDATE formations SET name = $1 WHERE id = $2 RETURNING id",
+                "UPDATE climb.formations SET name = $1 WHERE id = $2 RETURNING id",
                 &[&name, &id],
             )
             .await?
@@ -861,7 +864,7 @@ impl MutationRoot {
 
         let id = client
             .query_one(
-                "UPDATE formations SET location = $1 WHERE id = $2 RETURNING id",
+                "UPDATE climb.formations SET location = $1 WHERE id = $2 RETURNING id",
                 &[&point, &id],
             )
             .await?
@@ -887,45 +890,33 @@ impl MutationRoot {
 
         let transaction = client.transaction().await?;
 
+        transaction
+            .execute(
+                "
+                UPDATE climb.formations
+                SET region_id = NULL,
+                    crag_id = NULL,
+                    sector_id = NULL
+                WHERE id = $1
+                ",
+                &[&id],
+            )
+            .await?;
+
         if let Some(parent) = parent {
-            match parent {
-                FormationParentInput::Formation(formation_id) => {
-                    transaction
-                        .execute(
-                            "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
-                            &[&id],
-                        )
-                        .await?;
+            let (column, id_str) = match parent {
+                FormationParentInput::Region(region_id) => ("region_id", region_id),
+                FormationParentInput::Crag(crag_id) => ("crag_id", crag_id),
+                FormationParentInput::Sector(sector_id) => ("sector_id", sector_id),
+            };
 
-                    transaction
-                        .execute(
-                            "
-                            INSERT INTO formation_super_formation_closures (formation_id, super_formation_id)
-                            VALUES ($1, $2)
-                            ON CONFLICT (formation_id)
-                            DO UPDATE SET
-                            super_formation_id = EXCLUDED.super_formation_id
-                            ",
-                            &[&id, &formation_id],
-                        )
-                        .await?;
-                }
-            }
-        } else {
-            transaction
-                .execute(
-                    "DELETE FROM formation_super_formation_closures WHERE formation_id = $1",
-                    &[&id],
-                )
-                .await?;
+            let sql = format!("UPDATE climb.formations SET {} = $2 WHERE id = $1", column);
 
             transaction
-                .execute(
-                    "DELETE FROM formation_super_area_closures WHERE formation_id = $1",
-                    &[&id],
-                )
+                .execute(&sql, &[&id, &id_str.parse::<i32>()?])
                 .await?;
         }
+
         transaction.commit().await?;
 
         Ok(Formation(id))
@@ -946,7 +937,7 @@ impl MutationRoot {
         };
 
         client
-            .execute("DELETE FROM formations WHERE id = $1", &[&id])
+            .execute("DELETE FROM climb.formations WHERE id = $1", &[&id])
             .await?;
 
         // TODO Does this make sense?
