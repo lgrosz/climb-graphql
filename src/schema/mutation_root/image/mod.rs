@@ -27,7 +27,7 @@ impl ImageMutationRoot {
         client
             .execute(
                 "
-                INSERT INTO formations_in_image (image_id, formation_id)
+                INSERT INTO climb.formations_in_image (image_id, formation_id)
                 VALUES ($1, $2)
                 ",
                 &[&image_id, &formation_id],
@@ -56,7 +56,7 @@ impl ImageMutationRoot {
         client
             .execute(
                 "
-                DELETE FROM formations_in_image
+                DELETE FROM climb.formations_in_image
                 WHERE image_id = $1 AND formation_id = $2
                 ",
                 &[&image_id, &formation_id],
