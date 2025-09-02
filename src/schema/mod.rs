@@ -460,7 +460,7 @@ impl QueryRoot {
 
         // Just check for existence
         client
-            .query_one("SELECT 1 FROM topos WHERE id = $1", &[&id])
+            .query_one("SELECT 1 FROM topo.topos WHERE id = $1", &[&id])
             .await?;
 
         Ok(Topo(id))
@@ -482,8 +482,8 @@ impl QueryRoot {
 
         let result = client
             .query("
-                SELECT t.id FROM topos AS t
-                    INNER JOIN topo_image_features AS tif ON t.id = tif.topo_id
+                SELECT t.id FROM topo.topos AS t
+                    INNER JOIN topo.image_features AS tif ON t.id = tif.topo_id
                     INNER JOIN media.images AS i ON i.id = tif.image_id
                     INNER JOIN climb.formations_in_image AS fii ON fii.image_id = i.id
                 WHERE fii.formation_id = $1;
@@ -962,7 +962,7 @@ impl MutationRoot {
         let id = client
             .query_one(
                 "
-                INSERT INTO topos (title, width, height)
+                INSERT INTO topo.topos (title, width, height)
                 VALUES ($1, $2, $3)
                 RETURNING id
                 ",

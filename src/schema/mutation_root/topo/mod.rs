@@ -29,7 +29,7 @@ impl TopoMutationRoot {
 
         client.execute(
             "
-            UPDATE topos
+            UPDATE topo.topos
             SET title = $1
             WHERE id = $2;
             ",
@@ -103,7 +103,7 @@ async fn insert_image_feature(t: &Transaction<'_>, input: TopoImageFeatureInput,
 
     t.execute(
         "
-        INSERT INTO topo_image_features (source_crop, dest_crop, image_id, topo_id)
+        INSERT INTO topo.image_features (source_crop, dest_crop, image_id, topo_id)
         VALUES ($1, $2, $3, $4)
         ",
         &[&source_crop, &dest_crop, &input.image_id, &topo_id]).await?;
@@ -127,7 +127,7 @@ async fn insert_path_feature(t: &Transaction<'_>, input: TopoPathFeatureInput, t
 
             t.execute(
                 "
-                INSERT INTO topo_path_features (geometry, climb_id, topo_id)
+                INSERT INTO topo.path_features (geometry, climb_id, topo_id)
                 VALUES (ROW($1, $2, $3)::basis_spline, $4, $5)
                 ",
                 &[&degree, &knots, &pg_points, &climb_id, &topo_id]).await?;
@@ -140,7 +140,7 @@ async fn insert_path_feature(t: &Transaction<'_>, input: TopoPathFeatureInput, t
 async fn remove_path_feature(t: &Transaction<'_>, topo_id: i32, feature_id: i32) -> Result<()> {
     t.execute(
         "
-        DELETE FROM topo_path_features
+        DELETE FROM topo.path_features
         WHERE topo_id = $1 AND id = $2
         ", &[&topo_id, &feature_id]).await?;
 
@@ -150,7 +150,7 @@ async fn remove_path_feature(t: &Transaction<'_>, topo_id: i32, feature_id: i32)
 async fn remove_image_feature(t: &Transaction<'_>, topo_id: i32, feature_id: i32) -> Result<()> {
     t.execute(
         "
-        DELETE FROM topo_image_features
+        DELETE FROM topo.image_features
         WHERE topo_id = $1 AND id = $2
         ", &[&topo_id, &feature_id]).await?;
 

@@ -40,7 +40,7 @@ impl PathFeatureMutationRoot {
 
         tx.execute(
             "
-            UPDATE topo_path_features
+            UPDATE topo.path_features
             SET climb_id = $1
             WHERE id = $2;
             ",
@@ -52,7 +52,7 @@ impl PathFeatureMutationRoot {
             .query_one(
                 "
                 SELECT id, climb_id, (geometry).*
-                FROM topo_path_features
+                FROM topo.path_features
                 WHERE id = $1;
                 ",
                 &[&feature_id],
@@ -68,7 +68,7 @@ impl PathFeatureMutationRoot {
             .map_err(|_| Error::new("degree must be non-negative"))?;
         let knots: Vec<f64> = row.get("knots");
         let control_points: Vec<Point2D> = row
-            .get::<_, Vec<geo_types::Point<f64>>>("control_points")
+            .get::<_, Vec<geo_types::Point<f64>>>("points")
             .into_iter()
             .map(Point2D::from)
             .collect();
@@ -107,7 +107,7 @@ impl PathFeatureMutationRoot {
             .query_one(
                 "
                 SELECT id, climb_id, (geometry).*
-                FROM topo_path_features
+                FROM topo.path_features
                 WHERE id = $1;
                 ",
                 &[&feature_id],
@@ -123,7 +123,7 @@ impl PathFeatureMutationRoot {
             .map_err(|_| Error::new("degree must be non-negative"))?;
         let knots: Vec<f64> = row.get("knots");
         let control_points: Vec<Point2D> = row
-            .get::<_, Vec<geo_types::Point<f64>>>("control_points")
+            .get::<_, Vec<geo_types::Point<f64>>>("points")
             .into_iter()
             .map(Point2D::from)
             .collect();
@@ -153,7 +153,7 @@ async fn update_path_feature(t: &Transaction<'_>, id: i32, geometry: TopoPathGeo
 
             t.execute(
                 "
-                UPDATE topo_path_features
+                UPDATE topo.path_features
                 SET geometry = ROW($2, $3, $4)::basis_spline
                 WHERE id = $1;
                 ",
