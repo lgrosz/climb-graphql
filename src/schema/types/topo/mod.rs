@@ -28,7 +28,7 @@ impl Topo {
             .query_one(
                 "
                 SELECT title
-                FROM topos
+                FROM topo.topos
                 WHERE id = $1
                 ",
                 &[&self.0],
@@ -53,7 +53,7 @@ impl Topo {
             .query_one(
                 "
                 SELECT width
-                FROM topos
+                FROM topo.topos
                 WHERE id = $1
                 ",
                 &[&self.0],
@@ -78,7 +78,7 @@ impl Topo {
             .query_one(
                 "
                 SELECT height
-                FROM topos
+                FROM topo.topos
                 WHERE id = $1
                 ",
                 &[&self.0],
@@ -115,7 +115,7 @@ async fn get_path_features(client: &deadpool::managed::Object<deadpool_postgres:
             // getting the data out of the underlying composite-type
             "
             SELECT id, climb_id, (geometry).*
-            FROM topo_path_features
+            FROM topo.path_features
             WHERE topo_id = $1
             ",
             &[&topo_id],
@@ -132,7 +132,7 @@ async fn get_path_features(client: &deadpool::managed::Object<deadpool_postgres:
                 .map_err(|_| Error::new("degree must be non-negative"))?;
             let knots: Vec<f64> = row.get("knots");
             let control_points: Vec<Point2D> = row
-                .get::<_, Vec<geo_types::Point<f64>>>("control_points")
+                .get::<_, Vec<geo_types::Point<f64>>>("points")
                 .into_iter()
                 .map(Point2D::from)
                 .collect();
@@ -152,7 +152,7 @@ async fn get_image_features(client: &deadpool::managed::Object<deadpool_postgres
         .query(
             "
             SELECT id, image_id, source_crop, dest_crop
-            FROM topo_image_features
+            FROM topo.image_features
             WHERE topo_id = $1
             ",
             &[&topo_id],
