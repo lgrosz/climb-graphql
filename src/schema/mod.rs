@@ -1,6 +1,7 @@
 use std::fmt::Display;
+use std::io::Read;
 
-use async_graphql::{Context, Object, OneofObject, Result, SimpleObject, ID};
+use async_graphql::{Context, Object, OneofObject, Result, Upload, ID};
 
 use grade::GradeInput;
 use postgres_types::ToSql;
@@ -65,12 +66,6 @@ impl ToSql for GradeInput {
 }
 
 struct Image(pub i32);
-
-#[derive(SimpleObject)]
-struct PrepareImageUploadResult {
-    image: Image,
-    upload_url: String,
-}
 
 #[Object]
 impl Image {
@@ -974,13 +969,12 @@ impl MutationRoot {
         Ok(Topo(id))
     }
 
-    async fn prepare_image_upload(
+    async fn upload_image(
         &self,
         ctx: &Context<'_>,
         #[graphql(
-            validator(min_length = 1),
-            desc = "Name of image file",
-        )] name: String,
+            desc = "Image upload",
+        )] image: Upload,
         #[graphql(
             validator(min_length = 1),
             desc = "Alternative text",
@@ -988,7 +982,7 @@ impl MutationRoot {
         #[graphql(
             desc = "IDs of formations in this image",
         )] formation_ids: Option<Vec<ID>>,
-    ) -> Result<PrepareImageUploadResult> {
+    ) -> Result<Image> {
         let appdata = ctx.data::<AppData>()?;
 
         let mut pg = match &appdata.pg_pool {
@@ -998,20 +992,30 @@ impl MutationRoot {
             }
         };
 
-        // TODO this is configured, it shouldn't be hard-coded..
-        let bucket = "images";
-        let s3 = appdata.s3_pools.get(bucket)
-            .ok_or(format!("No {} bucket configured", bucket))?
+        // TODO this should be configured, I can imagine something like bhbouldering-images-prod
+        let bucket_name = "images";
+        let bucket = appdata.s3_pools.get(bucket_name)
+            .ok_or(format!("No {} bucket configured", bucket_name))?
             .get().await?;
 
         let transaction = pg.transaction().await?;
 
-        let image = Image(
+        let image_id =
             transaction
                 .query_one("INSERT INTO media.images (alt) VALUES ($1) RETURNING id", &[&alt])
                 .await?
-                .get::<_, i32>(0),
-        );
+                .get::<_, i32>(0);
+
+        let filename = image.value(ctx).unwrap().filename;
+        let object = format!("{}/{}", image_id, filename);
+
+        // TODO This blocks
+        let mut file = image.value(ctx).unwrap().content;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        let bytes = buf.as_slice();
+
+        bucket.put_object(object, bytes).await?;
 
         if let Some(ids) = &formation_ids {
             for formation_id in ids {
@@ -1021,21 +1025,14 @@ impl MutationRoot {
                     .map_err(|_| "Invalid formation ID".to_string())?;
                 transaction.execute(
                     "INSERT INTO climb.formations_in_image (formation_id, image_id) VALUES ($1, $2)",
-                    &[&formation_id, &image.0],
+                    &[&formation_id, &image_id],
                 ).await?;
             }
         }
 
-        let object = format!("{}/{}", image.0, name);
-        let upload_url = s3.presign_put(object, 300, None, None).await?;
-
-        // TODO failure to upload an image to the returned url, results in the image row being
-        // orphaned.. either need
-        // - garbage collection based on a "created-at" column
-        // - cleanup when presign url expires and nothing has been uploaded
         transaction.commit().await?;
 
-        Ok(PrepareImageUploadResult { image, upload_url })
+        Ok(Image(image_id))
     }
 
     async fn image(
