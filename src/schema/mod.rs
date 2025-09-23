@@ -716,6 +716,84 @@ impl MutationRoot {
         Ok(Climb(climb_id))
     }
 
+    async fn describe_crag(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Crag id")] id: ID,
+        #[graphql(desc = "Crag description")] description: Option<String>,
+    ) -> Result<Crag> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let crag_id = client
+            .query_one(
+                "UPDATE climb.crags SET description = $1 WHERE id = $2 RETURNING id",
+                &[&description, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Crag(crag_id))
+    }
+
+    async fn describe_region(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Region id")] id: ID,
+        #[graphql(desc = "Region description")] description: Option<String>,
+    ) -> Result<Region> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let region_id = client
+            .query_one(
+                "UPDATE climb.regions SET description = $1 WHERE id = $2 RETURNING id",
+                &[&description, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Region(region_id))
+    }
+
+    async fn describe_sector(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Sector id")] id: ID,
+        #[graphql(desc = "Sector description")] description: Option<String>,
+    ) -> Result<Sector> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let sector_id = client
+            .query_one(
+                "UPDATE climb.sectors SET description = $1 WHERE id = $2 RETURNING id",
+                &[&description, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Sector(sector_id))
+    }
+
     async fn move_climb(
         &self,
         ctx: &Context<'_>,
