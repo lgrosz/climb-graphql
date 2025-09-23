@@ -20,3 +20,4 @@ rust-s3 = "0.35.1"
 serde = "1.0.215"
 tokio = { version = "1.39.2", features = ["rt-multi-thread", "signal"] }
 tokio-postgres = "0.7.12"
+uuid = { version = "1.18.1", features = ["v4"] }

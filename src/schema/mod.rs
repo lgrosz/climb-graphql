@@ -15,6 +15,7 @@ use types::formation::{Coordinate, Formation};
 use types::region::Region;
 use types::sector::Sector;
 use types::topo::Topo;
+use uuid::Uuid;
 
 use crate::{AppData, WithAppData};
 
@@ -1322,6 +1323,7 @@ impl MutationRoot {
                 .get::<_, i32>(0);
 
         let filename = image.value(ctx).unwrap().filename;
+        // let object = format!("{}/{}", Uuid::new_v4(), filename);
         let object = format!("{}/{}", image_id, filename);
 
         // TODO This blocks
@@ -1331,6 +1333,8 @@ impl MutationRoot {
         let bytes = buf.as_slice();
 
         bucket.put_object(object, bytes).await?;
+
+        // TODO insert into s3 sources table
 
         if let Some(ids) = &formation_ids {
             for formation_id in ids {
