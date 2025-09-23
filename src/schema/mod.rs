@@ -8,7 +8,10 @@ use postgres_types::ToSql;
 use mutation_root::image::ImageMutationRoot;
 use mutation_root::topo::TopoMutationRoot;
 use types::climb::Climb;
+use types::crag::Crag;
 use types::formation::{Coordinate, Formation};
+use types::region::Region;
+use types::sector::Sector;
 use types::topo::Topo;
 
 use crate::AppData;
@@ -607,6 +610,84 @@ impl MutationRoot {
             .get::<_, i32>(0);
 
         Ok(Climb(id))
+    }
+
+    async fn rename_crag(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Crag id")] id: ID,
+        #[graphql(desc = "Crag name")] name: Option<String>,
+    ) -> Result<Crag> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let id = client
+            .query_one(
+                "UPDATE climb.crags SET name = $1 WHERE id = $2 RETURNING id",
+                &[&name, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Crag(id))
+    }
+
+    async fn rename_region(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Region id")] id: ID,
+        #[graphql(desc = "Region name")] name: Option<String>,
+    ) -> Result<Region> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let id = client
+            .query_one(
+                "UPDATE climb.regions SET name = $1 WHERE id = $2 RETURNING id",
+                &[&name, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Region(id))
+    }
+
+    async fn rename_sector(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Sector id")] id: ID,
+        #[graphql(desc = "Sector name")] name: Option<String>,
+    ) -> Result<Sector> {
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let id = client
+            .query_one(
+                "UPDATE climb.sectors SET name = $1 WHERE id = $2 RETURNING id",
+                &[&name, &id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Sector(id))
     }
 
     async fn describe_climb(
