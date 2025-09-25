@@ -516,6 +516,112 @@ pub struct MutationRoot;
 
 #[Object]
 impl MutationRoot {
+    async fn add_crag(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Crag name")]
+        name: Option<String>,
+        #[graphql(desc = "Crag description")]
+        description: Option<String>,
+        #[graphql(desc = "Region ID")]
+        region_id: Option<ID>,
+    ) -> Result<Crag> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let region_id = region_id
+            .map(|s| s.parse::<i32>())
+            .transpose()?;
+
+        let id = client
+            .query_one(
+                "
+                INSERT INTO climb.crags
+                    (name, description, region_id)
+                VALUES ($1, $2, $3)
+                RETURNING id
+                ",
+                &[&name, &description, &region_id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Crag(id))
+    }
+
+    async fn add_region(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Region name")]
+        name: Option<String>,
+        #[graphql(desc = "Region description")]
+        description: Option<String>,
+    ) -> Result<Region> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let id = client
+            .query_one(
+                "
+                INSERT INTO climb.regions
+                    (name, description)
+                VALUES ($1, $2)
+                RETURNING id
+                ",
+                &[&name, &description],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Region(id))
+    }
+
+    async fn add_sector(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Sector name")]
+        name: Option<String>,
+        #[graphql(desc = "Sector description")]
+        description: Option<String>,
+        #[graphql(desc = "Crag ID")]
+        crag_id: ID,
+    ) -> Result<Sector> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let crag_id = crag_id.parse::<i32>()?;
+
+        let id = client
+            .query_one(
+                "
+                INSERT INTO climb.sectors
+                    (name, description, crag_id)
+                VALUES ($1, $2, $3)
+                RETURNING id
+                ",
+                &[&name, &description, &crag_id],
+            )
+            .await?
+            .get::<_, i32>(0);
+
+        Ok(Sector(id))
+    }
+
     async fn describe_formation(
         &self,
         ctx: &Context<'_>,
