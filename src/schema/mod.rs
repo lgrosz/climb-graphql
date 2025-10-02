@@ -652,6 +652,7 @@ impl MutationRoot {
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Climb name")] name: Option<String>,
+        #[graphql(desc = "Climb description")] description: Option<String>,
         #[graphql(desc = "Climb parent")] parent: Option<ClimbParentInput>,
     ) -> Result<Climb> {
         let data = ctx.data::<AppData>()?;
@@ -666,8 +667,13 @@ impl MutationRoot {
 
         let id = transaction
             .query_one(
-                "INSERT INTO climb.climbs (name) VALUES ($1) RETURNING id",
-                &[&name],
+                "
+                INSERT INTO
+                climb.climbs (name, description)
+                VALUES ($1, $2)
+                RETURNING id
+                ",
+                &[&name, &description],
             )
             .await?
             .get::<_, i32>(0);
@@ -1035,6 +1041,7 @@ impl MutationRoot {
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "Formation name")] name: Option<String>,
+        #[graphql(desc = "Formation description")] description: Option<String>,
         #[graphql(desc = "Formation location")] location: Option<Coordinate>,
         #[graphql(desc = "Formation parent")] parent: Option<FormationParentInput>,
     ) -> Result<Formation> {
@@ -1053,8 +1060,12 @@ impl MutationRoot {
 
         let id = transaction
             .query_one(
-                "INSERT INTO climb.formations (name, location) VALUES ($1, $2) RETURNING id",
-                &[&name, &point],
+                "
+                INSERT INTO
+                    climb.formations (name, description, location)
+                    VALUES ($1, $2, $3)
+                    RETURNING id",
+                &[&name, &description, &point],
             )
             .await?
             .get::<_, i32>(0);
