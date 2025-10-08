@@ -8,6 +8,7 @@ use postgres_types::ToSql;
 use mutation_root::image::ImageMutationRoot;
 use mutation_root::topo::TopoMutationRoot;
 use types::climb::Climb;
+use types::climber::Climber;
 use types::crag::Crag;
 use types::formation::{Coordinate, Formation};
 use types::region::Region;
@@ -287,6 +288,30 @@ impl QueryRoot {
             .await?;
 
         Ok(types::sector::Sector(id))
+    }
+
+    async fn climbers(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Vec<Climber>> {
+        let data = ctx.data::<AppData>()?;
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await?,
+            None => {
+                return Err("Database connection is not available".into());
+            }
+        };
+
+        let result = client
+            .query("SELECT climbers.id FROM climb.climbers", &[])
+            .await?;
+
+        let climbers = result
+            .into_iter()
+            .map(|row| row.try_get(0).map(Climber))
+            .collect::<Result<Vec<Climber>, _>>()?;
+
+        Ok(climbers)
     }
 
     async fn climbs(
