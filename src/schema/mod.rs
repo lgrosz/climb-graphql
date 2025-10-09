@@ -22,6 +22,7 @@ pub mod fontainebleau_grade;
 pub mod vermin_grade;
 pub mod yosemite_decimal_grade;
 pub mod mutation_root;
+pub mod scalars;
 pub mod types;
 
 pub struct QueryRoot;
