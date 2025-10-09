@@ -2,15 +2,16 @@ mod schema;
 mod s3_client_manager;
 
 use crate::schema::QueryRoot;
-use async_graphql::{http::GraphiQLSource, EmptySubscription, Schema};
+use async_graphql::{http::GraphiQLSource, Context, EmptySubscription, Schema};
 use async_graphql_axum::GraphQL;
 use axum::{
     response::{self, IntoResponse},
     routing::get,
     Router,
 };
+use deadpool::managed::PoolError;
 use schema::MutationRoot;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 use tokio::net::TcpListener;
 use tokio::signal;
 
@@ -39,6 +40,39 @@ pub struct AppData {
     pub s3_pools: HashMap<String, s3_client_manager::Pool>,
 }
 
+pub enum AppDataDbError {
+    NoPool,
+    PoolError(PoolError<tokio_postgres::Error>),
+}
+
+impl Display for AppDataDbError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppDataDbError::NoPool => write!(f, "No pool"),
+            AppDataDbError::PoolError(e) => write!(f, "Pool error: {}", e),
+        }
+    }
+}
+
+pub enum AppDataError {
+    NoAppData,
+    Db(AppDataDbError),
+}
+
+impl Display for AppDataError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppDataError::NoAppData => write!(f, "No app data"),
+            AppDataError::Db(e) => write!(f, "DB Error: {}", e),
+        }
+    }
+}
+
+pub trait WithAppData {
+    fn app_data(&self) -> Result<&AppData, AppDataError>;
+    fn db_client(&self) -> impl std::future::Future<Output = Result<deadpool_postgres::Client, AppDataError>>;
+}
+
 impl Config {
     pub fn from_env() -> Result<Self, config::ConfigError> {
         let cfg = config::Config::builder()
@@ -52,6 +86,26 @@ impl Config {
             .set_default("images.style", "subdomain")?
             .build()?;
         cfg.try_deserialize()
+    }
+}
+
+impl WithAppData for Context<'_> {
+    /// Access to app data directly. Prefer other helpers.
+    fn app_data(&self) -> Result<&AppData, AppDataError> {
+        self.data::<AppData>()
+            .map_err(|_| AppDataError::NoAppData)
+    }
+
+    /// Helper to get a db client.
+    async fn db_client(&self) -> Result<deadpool_postgres::Client, AppDataError> {
+        let data = self.app_data()?;
+
+        let client = match &data.pg_pool {
+            Some(pool) => pool.get().await.map_err(|e| AppDataError::Db(AppDataDbError::PoolError(e)))?,
+            None => return Err(AppDataError::Db(AppDataDbError::NoPool)),
+        };
+
+        Ok(client)
     }
 }
 
