@@ -13,6 +13,15 @@ pub enum DateRangeParseError {
     BadBounds,
 }
 
+impl Display for DateRangeParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DateRangeParseError::BadFormat => write!(f, "Failed to parse DateRange"),
+            DateRangeParseError::BadBounds => write!(f, "Bad DateRange bounds"),
+        }
+    }
+}
+
 #[derive(Debug)]
 #[derive(PartialEq)]
 pub struct DateRange {
