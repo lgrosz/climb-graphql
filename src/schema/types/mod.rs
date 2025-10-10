@@ -1,3 +1,5 @@
+pub mod ascent;
+pub mod ascent_party;
 pub mod climber;
 pub mod climb;
 pub mod crag;
