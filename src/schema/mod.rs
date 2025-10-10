@@ -7,6 +7,7 @@ use grade::GradeInput;
 use postgres_types::ToSql;
 use mutation_root::image::ImageMutationRoot;
 use mutation_root::topo::TopoMutationRoot;
+use types::ascent::Ascent;
 use types::climb::Climb;
 use types::climber::Climber;
 use types::crag::Crag;
@@ -15,7 +16,7 @@ use types::region::Region;
 use types::sector::Sector;
 use types::topo::Topo;
 
-use crate::AppData;
+use crate::{AppData, WithAppData};
 
 pub mod grade;
 pub mod fontainebleau_grade;
@@ -172,6 +173,18 @@ impl Image {
 
 #[Object]
 impl QueryRoot {
+    async fn ascent(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Ascent ID")]
+        id: ID,
+    ) -> Result<Ascent> {
+        let client = ctx.db_client().await?;
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+        let row = client.query_one("SELECT id from climb.ascents WHERE id = $1", &[&id]).await?;
+        Ok(row.try_get(0).map(Ascent)?)
+    }
+
     async fn regions(
         &self,
         ctx: &Context<'_>,

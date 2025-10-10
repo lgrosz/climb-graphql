@@ -1,8 +1,8 @@
 use async_graphql::{Context, Object, Result, Union, ID};
 
-use crate::{schema::grade::Grade, AppData};
+use crate::{schema::grade::Grade, AppData, WithAppData};
 
-use super::{crag::Crag, formation::Formation, region::Region, sector::Sector};
+use super::{ascent::Ascent, crag::Crag, formation::Formation, region::Region, sector::Sector};
 
 #[derive(Union)]
 enum ClimbParent {
@@ -18,6 +18,28 @@ pub struct Climb(pub i32);
 impl Climb {
     async fn id(&self) -> ID {
         self.0.into()
+    }
+
+    async fn ascents(&self, ctx: &Context<'_>) -> Result<Vec<Ascent>> {
+        let client = ctx.db_client().await?;
+        let rows = client.query(
+            "
+            SELECT a.id
+            FROM climb.ascents as a
+            INNER JOIN climb.climbs as c ON c.id = a.climb_id
+            WHERE c.id = $1
+            ",
+            &[&self.0]
+            )
+            .await?;
+
+        let ascents = rows
+            .iter()
+            .filter_map(|r| r.try_get::<_, i32>(0).ok())
+            .map(Ascent)
+            .collect::<Vec<_>>();
+
+        Ok(ascents)
     }
 
     async fn name(&self, ctx: &Context<'_>) -> Result<Option<String>> {
