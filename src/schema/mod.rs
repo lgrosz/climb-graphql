@@ -7,7 +7,9 @@ use grade::GradeInput;
 use postgres_types::ToSql;
 use mutation_root::image::ImageMutationRoot;
 use mutation_root::topo::TopoMutationRoot;
+use scalars::date_range::DateRange;
 use types::ascent::Ascent;
+use types::ascent_party_input::AscentPartyInput;
 use types::climb::Climb;
 use types::climber::Climber;
 use types::crag::Crag;
@@ -555,6 +557,54 @@ pub struct MutationRoot;
 
 #[Object]
 impl MutationRoot {
+    async fn add_ascent(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Climb ID")]
+        climb_id: ID,
+        #[graphql(desc = "Ascent date window")]
+        date_window: Option<DateRange>,
+        #[graphql(desc = "Ascent party")]
+        party: AscentPartyInput,
+        #[graphql(desc = "Whether this is a first ascent")]
+        first_ascent: bool,
+        #[graphql(desc = "Whether this ascent is verified")]
+        verified: bool,
+    ) -> Result<Ascent> {
+        let mut client = ctx.db_client().await?;
+        let tx = client.transaction().await?;
+
+        let climb_id = climb_id.parse::<i32>().map_err(|_| "Invalid climb ID")?;
+        let ascent_window = date_window.as_ref().map(|r| r.to_string());
+
+        let row = tx.query_one(
+            "
+            INSERT INTO climb.ascents
+                (climb_id, ascent_window, ascent_duration, first_ascent, members_complete, verified)
+            VALUES
+                ($1, COALESCE($2, NULL)::DATERANGE, NULL, $3, $4, $5)
+            RETURNING id
+            ",
+            &[&climb_id, &ascent_window, &first_ascent, &party.complete, &verified],
+        ).await?;
+
+        let ascent_id: i32 = row.get(0);
+
+        for member_id in &party.member_ids {
+            let climber_id: i32 = member_id.parse().map_err(|_| "Invalid climber ID")?;
+            tx.execute(
+                "
+                INSERT INTO climb.ascent_members (ascent_id, climber_id)
+                VALUES ($1, $2)
+                ",
+                &[&ascent_id, &climber_id],
+            ).await?;
+        }
+
+        tx.commit().await?;
+        Ok(Ascent(ascent_id))
+    }
+
     async fn add_crag(
         &self,
         ctx: &Context<'_>,
