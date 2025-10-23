@@ -996,6 +996,25 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
+    async fn move_crag(
+        &self,
+        ctx: &Context<'_>,
+        id: ID,
+        region_id: Option<ID>
+    ) -> Result<Crag> {
+        let db_client = ctx.db_client().await?;
+
+        let id: i32 = id.parse()?;
+        let region_id: Option<i32> = region_id.map(|r| r.parse()).transpose()?;
+
+        let _ = db_client.execute(
+            "
+            UPDATE climb.crags SET region_id = $1 WHERE id = $2
+            ", &[&region_id, &id]).await;
+
+        Ok(Crag(id))
+    }
+
     async fn add_climb_grade(
         &self,
         ctx: &Context<'_>,
