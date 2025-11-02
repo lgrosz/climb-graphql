@@ -1094,6 +1094,36 @@ impl MutationRoot {
         Ok(Climb(id))
     }
 
+    async fn remove_ascents(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Ascent IDs")] ids: Vec<ID>,
+    ) -> Result<Vec<Ascent>> {
+        let ids: Vec<i32> = ids.into_iter()
+            .map(|s| s.parse().map_err(|_| "Invalid ID format"))
+            .collect::<Result<_, _>>()?;
+
+        let client = ctx.db_client().await?;
+
+        let rows = client
+            .query(
+                "
+                DELETE FROM climb.ascents
+                WHERE id = ANY($1)
+                RETURNING id
+                ",
+                &[&ids],
+            )
+            .await?;
+
+        let ascents = rows.into_iter().map(|row| {
+            let id: i32 = row.get(0);
+            Ascent(id)
+        }).collect();
+
+        Ok(ascents)
+    }
+
     async fn remove_climb_grade(
         &self,
         ctx: &Context<'_>,
