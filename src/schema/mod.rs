@@ -1476,6 +1476,33 @@ impl MutationRoot {
         Ok(row.try_get(0).map(Ascent)?)
     }
 
+    async fn mark_first_ascent(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "ID of ascent")]
+        id: ID,
+        #[graphql(desc = "Whether or not the ascent is a first ascent")]
+        is_first_ascent: bool,
+    ) -> Result<Ascent> {
+        let client = ctx.db_client().await?;
+        let id: i32 = id.0.parse().map_err(|_| "Invalid ID format")?;
+
+        let row = client
+            .query_one(
+                "
+                UPDATE climb.ascents
+                SET first_ascent = $1
+                WHERE id = $2
+                RETURNING id
+                ",
+                &[&is_first_ascent, &id],
+            )
+            .await
+            .map_err(|e| format!("Failed to update ascent: {e}"))?;
+
+        Ok(row.try_get(0).map(Ascent)?)
+    }
+
     async fn image(
         &self,
         #[graphql(desc = "ID of image")]
